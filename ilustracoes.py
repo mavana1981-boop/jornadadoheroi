@@ -650,3 +650,58 @@ def specs_de_imagem(tipo, d):
     v = visuais_da_atividade(tipo, d)
     todos = ([v["enunciado"]] if v["enunciado"] else []) + list(v["pecas"].values())
     return [s for s in todos if s.startswith(("g:", "w:"))]
+
+
+# ---------------------------------------------------------------------------
+# Mapa da jornada: um castelo e um cenário para cada mundo
+#   "k:" = castelo gerado pelo Gemini com o fundo recortado (fica "pousado" no mapa)
+#   "c:" = paisagem vertical gerada pelo Gemini (fundo da região do mundo no mapa)
+# ---------------------------------------------------------------------------
+_MAPA = {
+    "Matemática": {
+        "castelo": "k:castelo de pedra cinza no alto de uma montanha nevada, com torres em forma de cubo, de pirâmide, "
+                   "de cilindro e uma cúpula em forma de esfera, bandeiras laranja, estilo jogo infantil|Castelo",
+        "cenario": "c:montanhas rochosas e coloridas com picos nevados, um vulcão fumegando ao longe, pedras em forma "
+                   "de cubos e pirâmides espalhadas, pinheiros e um riacho, céu laranja do entardecer",
+    },
+    "Português": {
+        "castelo": "k:castelo mágico na floresta cujas torres são pilhas de livros gigantes coloridos, com telhados "
+                   "de cogumelo, janelas iluminadas e trepadeiras, estilo jogo infantil|Castelo",
+        "cenario": "c:floresta encantada bem verde com árvores enormes, cogumelos gigantes, livros abertos voando "
+                   "como pássaros, vaga-lumes, flores e um riacho brilhante",
+    },
+    "Ciências": {
+        "castelo": "k:castelo feito de árvores vivas e cristais de água azul, com uma cachoeira saindo da torre, "
+                   "flores e folhas nos telhados, um arco-íris por cima, estilo jogo infantil|Castelo",
+        "cenario": "c:vale verde com rio azul, cachoeira, lago, nuvens de chuva de um lado e sol do outro, plantações, "
+                   "árvores frutíferas e montanhas suaves ao fundo",
+    },
+    "Geografia": {
+        "castelo": "k:castelo encantado roxo e rosa no meio de uma pequena cidade, cercado por casinhas, uma fábrica, "
+                   "um trator, plantações e lixeiras coloridas de reciclagem, estilo jogo infantil|Castelo",
+        "cenario": "c:campo e cidade lado a lado: plantações coloridas, vacas, trator, uma vila com casinhas, "
+                   "comércio, fábrica e árvores, estradas de terra e um rio",
+    },
+    "História": {
+        "castelo": "k:castelo antigo de tijolos com uma grande torre de relógio, uma ampulheta dourada gigante, "
+                   "lampiões a gás acesos e bandeiras, estilo jogo infantil|Castelo",
+        "cenario": "c:cidade antiga ao entardecer com ruas de pedra, lampiões acesos, bonde puxado por burros, "
+                   "carroças, casarões coloniais e um trem a vapor ao longe",
+    },
+    "Inglês": {
+        "castelo": "k:castelo alegre numa ilha tropical, com torres vermelhas e azuis, balões coloridos, "
+                   "bandeirinhas de festa e um barco pirata ancorado ao lado, estilo jogo infantil|Castelo",
+        "cenario": "c:ilha tropical cercada de mar azul-turquesa, praias, coqueiros, frutas tropicais, "
+                   "um campo de futebol, bicicletas e um navio pirata ao longe",
+    },
+}
+_MAPA["Geografia e História"] = _MAPA["Geografia"]
+
+
+def mapa_do_mundo(materia):
+    """Pedidos de imagem do castelo e do cenário de uma matéria (ou None)."""
+    return _MAPA.get(materia)
+
+
+def specs_do_mapa():
+    return [s for m in _MAPA.values() for s in m.values()]

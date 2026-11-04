@@ -393,7 +393,8 @@ def plano_jornada(hoje=None):
                             "mundo": m["nome"], "emoji": m["emoji"], "cor": m["cor"], "cor2": m["cor2"],
                             "chefao": m["chefao"], "chefao_emoji": m["chefao_emoji"], "dominio": p.dominio,
                             "status": "feita" if d < hoje else ("hoje" if d == hoje else "futura"),
-                            "url": url_for("mundo", prova_id=p.id), "conteudos": len(p.conteudos)})
+                            "url": url_for("mundo", prova_id=p.id), "conteudos": len(p.conteudos),
+                            "cenario": m["cenario"], **imagens.visuais_do_mapa(p.materia)})
         futuras = [p for p in provas if p.data > d]
         if futuras:
             alvo = futuras[0]

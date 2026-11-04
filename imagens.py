@@ -19,6 +19,7 @@ from models import Atividade, Config, Imagem, db
 
 UA = {"User-Agent": "JornadaDoHeroi/1.0 (app educativo infantil)"}
 CUSTO_GEMINI_US = 0.034
+TIPOS = ("g:", "w:", "k:", "c:")   # ilustração | foto livre | castelo recortado | cenário vertical
 _estado = {"rodando": False, "feitas": 0, "inicio": None}
 _trava = threading.Lock()
 
@@ -32,7 +33,7 @@ def chave(spec):
 # ---------------------------------------------------------------------------
 def registrar(specs):
     """Garante uma linha para cada pedido de imagem (não gera nada)."""
-    specs = {s for s in specs if s and s.startswith(("g:", "w:"))}
+    specs = {s for s in specs if s and s.startswith(TIPOS)}
     if not specs:
         return
     existentes = {c for (c,) in db.session.query(Imagem.chave).filter(Imagem.chave.in_([chave(s) for s in specs]))}
@@ -43,7 +44,7 @@ def registrar(specs):
 
 
 def registrar_todas():
-    specs = set()
+    specs = set(ilustracoes.specs_do_mapa())
     for a in Atividade.query.filter_by(ativa=True).all():
         specs.update(ilustracoes.specs_de_imagem(a.tipo, a.d()))
     registrar(specs)
@@ -68,6 +69,8 @@ def resolver(spec, legenda=""):
         return None
     if spec.startswith("svg:"):
         return {"svg": spec[4:], "alt": legenda}
+    if not spec.startswith(TIPOS):
+        return None
     if chave(spec) in _prontas():
         return {"img": url_for("ilustracao", chave=chave(spec)), "alt": legenda}
     return None
@@ -75,7 +78,7 @@ def resolver(spec, legenda=""):
 
 def visuais_para(atividade):
     v = ilustracoes.visuais_da_atividade(atividade.tipo, atividade.d())
-    faltam = [s for s in ([v["enunciado"]] + list(v["pecas"].values())) if s and not s.startswith("svg:")]
+    faltam = [s for s in ([v["enunciado"]] + list(v["pecas"].values())) if s and s.startswith(TIPOS)]
     if faltam:
         registrar(faltam)  # atividades novas entram na fila sozinhas
     return {"visual": resolver(v["enunciado"]),
@@ -85,7 +88,37 @@ def visuais_para(atividade):
 # ---------------------------------------------------------------------------
 # Geração
 # ---------------------------------------------------------------------------
-def _reduzir(bruto):
+def _recortar_fundo(bruto):
+    """Castelo: remove o fundo branco a partir das bordas e devolve um PNG transparente."""
+    from PIL import Image, ImageDraw, ImageFilter
+    im = Image.open(io.BytesIO(bruto)).convert("RGB")
+    im.thumbnail((640, 640))
+    w, h = im.size
+    marca = (255, 0, 255)
+    trab = im.copy()
+    for x, y in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1), (w // 2, 0), (w // 2, h - 1), (0, h // 2), (w - 1, h // 2)]:
+        r, g, b = trab.getpixel((x, y))
+        if min(r, g, b) > 200 and trab.getpixel((x, y)) != marca:
+            ImageDraw.floodfill(trab, (x, y), marca, thresh=48)
+    alfa = Image.new("L", (w, h), 255)
+    px, pa = trab.load(), alfa.load()
+    for yy in range(h):
+        for xx in range(w):
+            if px[xx, yy] == marca:
+                pa[xx, yy] = 0
+    alfa = alfa.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1.2))
+    out_im = im.convert("RGBA")
+    out_im.putalpha(alfa)
+    caixa = alfa.point(lambda v: 255 if v > 20 else 0).getbbox()
+    if caixa:
+        out_im = out_im.crop(caixa)
+    out_im.thumbnail((512, 512))
+    out = io.BytesIO()
+    out_im.save(out, "PNG", optimize=True)
+    return out.getvalue()
+
+
+def _reduzir(bruto, maximo=(512, 512), qualidade=82):
     from PIL import Image, ImageOps
     im = Image.open(io.BytesIO(bruto))
     im = ImageOps.exif_transpose(im)
@@ -96,9 +129,9 @@ def _reduzir(bruto):
         im = fundo
     else:
         im = im.convert("RGB")
-    im.thumbnail((512, 512))
+    im.thumbnail(maximo)
     out = io.BytesIO()
-    im.save(out, "JPEG", quality=82, optimize=True)
+    im.save(out, "JPEG", quality=qualidade, optimize=True, progressive=True)
     return out.getvalue()
 
 
@@ -139,22 +172,33 @@ def gerar_uma(img):
     descricao, _, termo_wiki = resto.partition("|")
     bloqueado = Config.get("imagens_gemini_bloqueado")
     try:
-        if tipo == "g" and gemini.disponivel() and not bloqueado:
+        img.mime = "image/jpeg"
+        if tipo in ("g", "k", "c") and gemini.disponivel() and not bloqueado:
+            estilo = {"k": gemini.ESTILO_CASTELO, "c": gemini.ESTILO_CENARIO}.get(tipo)
             try:
-                bruto, _mime, modelo = gemini.gerar_imagem(descricao, Config.get("imagens_modelo"))
-                img.dados, img.origem = _reduzir(bruto), "gemini"
+                bruto, _mime, modelo = gemini.gerar_imagem(descricao, Config.get("imagens_modelo"), estilo=estilo,
+                                                           proporcao="9:16" if tipo == "c" else "1:1")
+                if tipo == "k":
+                    img.dados, img.mime = _recortar_fundo(bruto), "image/png"
+                elif tipo == "c":
+                    img.dados = _reduzir(bruto, (720, 1280), 78)
+                else:
+                    img.dados = _reduzir(bruto)
+                img.origem = "gemini"
                 Config.set("imagens_modelo", modelo)
             except gemini.GeminiSemFaturamento as e:
                 Config.set("imagens_gemini_bloqueado", str(e)[:480])
                 db.session.commit()
                 return gerar_uma(img) if img.tentativas < 3 else False
         else:
+            if tipo == "c":
+                raise RuntimeError("cenários só podem ser gerados pelo Gemini (o mapa usa as cores do mundo enquanto isso)")
             termo = descricao if tipo == "w" else (termo_wiki or descricao)
             url = _wikipedia(termo)
             if not url:
                 raise RuntimeError(f"nenhuma foto livre encontrada para “{termo}”")
             img.dados, img.origem = _reduzir(_baixar(url)), "wikipedia"
-        img.status, img.erro, img.mime = "ok", "", "image/jpeg"
+        img.status, img.erro = "ok", ""
         db.session.commit()
         _cache_ok["quando"] = 0
         return True
@@ -171,7 +215,9 @@ def _laco(app):
         try:
             while True:
                 with _trava:
-                    img = Imagem.query.filter_by(status="pendente").order_by(Imagem.id).first()
+                    # castelos e cenários do mapa primeiro (são poucos e aparecem logo na tela inicial)
+                    prioridade = db.case((Imagem.spec.like("k:%"), 0), (Imagem.spec.like("c:%"), 0), else_=1)
+                    img = Imagem.query.filter_by(status="pendente").order_by(prioridade, Imagem.id).first()
                     if not img:
                         break
                     img.status = "gerando"
@@ -204,7 +250,8 @@ def refazer_falhas():
 
 def situacao():
     contagem = dict(db.session.query(Imagem.status, db.func.count(Imagem.id)).group_by(Imagem.status).all())
-    pend_g = (Imagem.query.filter(Imagem.status.in_(["pendente", "gerando"]), Imagem.spec.like("g:%")).count())
+    pend_g = (Imagem.query.filter(Imagem.status.in_(["pendente", "gerando"]),
+                                  db.or_(Imagem.spec.like("g:%"), Imagem.spec.like("k:%"), Imagem.spec.like("c:%"))).count())
     origens = dict(db.session.query(Imagem.origem, db.func.count(Imagem.id)).filter_by(status="ok")
                    .group_by(Imagem.origem).all())
     bloqueado = Config.get("imagens_gemini_bloqueado") or ""
@@ -218,3 +265,12 @@ def situacao():
         "ultimas_falhas": [{"spec": i.spec[:80], "erro": i.erro} for i in
                            Imagem.query.filter_by(status="falha").order_by(Imagem.id.desc()).limit(5)],
     }
+
+
+def visuais_do_mapa(materia):
+    """URLs prontas do castelo e do cenário de um mundo (ou None enquanto não foram geradas)."""
+    m = ilustracoes.mapa_do_mundo(materia)
+    if not m:
+        return {"castelo_img": None, "cenario_img": None}
+    c, k = resolver(m["cenario"]), resolver(m["castelo"])
+    return {"castelo_img": k["img"] if k else None, "cenario_img": c["img"] if c else None}

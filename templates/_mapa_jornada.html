@@ -26,20 +26,33 @@
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
   const mapa = $("#mapa"), svg = $("#estrada");
-  const CENARIOS = {};  // decoração por mundo, a partir das provas
-  const ESPACO = {missao: 96, batalha: 104, prova: 168};
+  const ESPACO = {missao: 96, batalha: 104, prova: 220};
+  const letras = t => (window.Intl && Intl.Segmenter) ? [...new Intl.Segmenter("pt", {granularity: "grapheme"}).segment(t || "")].map(x => x.segment).filter(x => x.trim()) : Array.from(t || "");
 
   /* ---------- monta os elementos (uma vez) ---------- */
   const regioes = [];   // um trecho colorido para cada prova
   let ini = 0;
   NOS.forEach((n, i) => { if (n.tipo === "prova") { regioes.push({de: ini, ate: i, prova: n}); ini = i + 1; } });
 
-  const elRegioes = regioes.map(r => {
+  const regiaoDe = i => regioes.find(r => i >= r.de && i <= r.ate) || regioes[regioes.length - 1];
+  const elRegioes = regioes.map((r, k) => {
     const d = document.createElement("div");
-    d.className = "regiao";
-    d.style.setProperty("--c1", r.prova.cor); d.style.setProperty("--c2", r.prova.cor2);
-    d.innerHTML = `<div class="regiao-nome">Rumo ao ${esc(r.prova.emoji)} ${esc(r.prova.mundo)}</div>`;
+    const pv = r.prova;
+    d.className = "regiao" + (pv.cenario_img ? " com-img" : "") + (k === 0 ? " primeira" : "");
+    d.style.setProperty("--c1", pv.cor); d.style.setProperty("--c2", pv.cor2);
+    if (pv.cenario_img) d.style.backgroundImage = `url("${pv.cenario_img}")`;
+    // não repete a faixa quando o mundo é o mesmo do trecho anterior (ex.: Português B3 → A3)
+    const mesmo = k > 0 && regioes[k - 1].prova.mundo === pv.mundo;
     mapa.appendChild(d);
+    // a faixa fica fora da região para passar por cima da estrada, como uma placa
+    const fx = document.createElement("div");
+    fx.className = "regiao-faixa" + (mesmo ? " discreta" : "");
+    fx.style.setProperty("--c1", pv.cor); fx.style.setProperty("--c2", pv.cor2);
+    fx.innerHTML = `<span class="rf-emoji">${esc(pv.emoji)}</span>
+        <span class="rf-txt"><small>${mesmo ? "Ainda no" : "Rumo ao"}</small><b>${esc(pv.mundo)}</b></span>
+        <span class="rf-chefe" title="${esc(pv.chefao)}">${esc(pv.chefao_emoji)}</span>`;
+    mapa.appendChild(fx);
+    d._faixa = fx;
     return d;
   });
 
@@ -50,8 +63,12 @@
     if (n.tipo === "prova") {
       b.className = `no-prova ${n.status}`;
       b.style.setProperty("--c1", n.cor); b.style.setProperty("--c2", n.cor2);
-      b.innerHTML = `<div class="castelo"><span class="c-emoji">🏰</span><span class="c-mundo">${esc(n.emoji)}</span>${n.status === "feita" ? '<span class="c-ok">✅</span>' : ""}</div>
-        <div class="c-texto"><span class="c-tag">PROVA · ${esc(n.semana)} ${esc(n.data_br)}</span><b>${esc(n.titulo)}</b></div>`;
+      const ok = n.status === "feita" ? '<span class="c-ok">✅</span>' : "";
+      b.innerHTML = (n.castelo_img
+        ? `<div class="castelo-img"><img src="${esc(n.castelo_img)}" alt="Castelo: ${esc(n.mundo)}" onerror="this.parentNode.classList.add('falhou')">${ok}
+             <div class="castelo reserva"><span class="c-emoji">🏰</span><span class="c-mundo">${esc(n.emoji)}</span></div></div>`
+        : `<div class="castelo"><span class="c-emoji">🏰</span><span class="c-mundo">${esc(n.emoji)}</span>${ok}</div>`) +
+        `<div class="c-texto"><span class="c-tag">⚔️ PROVA · ${esc(n.semana)} ${esc(n.data_br)}</span><b>${esc(n.titulo)}</b><span class="c-chefe">${esc(n.chefao_emoji)} ${esc(n.chefao)}</span></div>`;
     } else {
       const icone = n.status === "feita" ? "⭐".repeat(Math.max(1, n.estrelas))
         : n.status === "perdida" ? "💤" : n.tipo === "batalha" ? "⚔️" : "📜";
@@ -67,7 +84,7 @@
 
   const fim = document.createElement("div");
   fim.className = "fim-jornada";
-  fim.innerHTML = `<div style="font-size:54px">🏁🏖️</div><b>Fim da jornada: férias!</b>`;
+  fim.innerHTML = `<div class="fim-bandeira">🏁</div><div class="fim-praia">🏖️🌴⛱️</div><b>Fim da jornada: férias!</b>`;
   mapa.appendChild(fim);
 
   const heroi = document.createElement("div");
@@ -80,23 +97,34 @@
   heroi.onclick = () => abrirFolha(POS);
   mapa.appendChild(heroi);
 
-  // decorações espalhadas nos trechos (fixas, para não "pular" a cada visita)
-  const DECOR = ["🌳", "🌲", "🌼", "🍄", "🪨", "🌻", "⛰️", "🌵", "🏕️", "🦋", "🐦", "🌷"];
+  // decorações do tema de cada mundo (fixas, para não "pular" a cada visita).
+  // Onde já existe o cenário pintado pelo Gemini, ficam bem poucas.
   const elDecor = [];
   NOS.forEach((n, i) => {
-    if (i % 2) return;
+    const r = regiaoDe(i), tema = letras(r.prova.cenario);
+    if (!tema.length || (r.prova.cenario_img ? i % 4 : i % 2)) return;
     const d = document.createElement("span");
-    d.className = "decor";
-    d.textContent = DECOR[(i * 7 + n.dia) % DECOR.length];
+    d.className = "decor" + (r.prova.cenario_img ? " sobre-img" : "");
+    d.textContent = tema[(i * 7 + n.dia) % tema.length];
+    d.style.animationDelay = (-(i % 5) * .7) + "s";
     mapa.appendChild(d);
     elDecor.push({el: d, i});
   });
+  // nuvens passando por cima do mapa
+  const elNuvens = [];
+  for (let k = 0; k < Math.max(3, Math.round(NOS.length / 4)); k++) {
+    const d = document.createElement("span");
+    d.className = "nuvem"; d.textContent = "☁️";
+    d.style.animationDuration = (38 + (k % 4) * 9) + "s"; d.style.animationDelay = (-k * 11) + "s";
+    d.style.fontSize = (34 + (k % 3) * 14) + "px";
+    mapa.appendChild(d); elNuvens.push(d);
+  }
 
   /* ---------- posições (refaz quando a tela muda de tamanho) ---------- */
   let P = [];
   function layout() {
     const W = mapa.clientWidth, cx = W / 2, A = Math.min(W * 0.28, 150);
-    let y = 96; P = [];
+    let y = 116; P = [];
     NOS.forEach((n, i) => {
       if (i > 0) y += (ESPACO[n.tipo] + ESPACO[NOS[i - 1].tipo]) / 2 + (NOS[i - 1].tipo === "prova" ? 46 : 0);
       const x = n.tipo === "prova" ? cx : cx + A * Math.sin(i * 0.95);
@@ -111,10 +139,12 @@
     fim.style.left = cx + "px"; fim.style.top = yFim + "px";
 
     regioes.forEach((r, k) => {
-      const topo = k === 0 ? 0 : P[regioes[k - 1].ate].y + 70;
-      const base = P[r.ate].y + 70;
+      const topo = k === 0 ? 0 : P[regioes[k - 1].ate].y + 96;
+      const base = k === regioes.length - 1 ? yFim + 90 : P[r.ate].y + 96;
       elRegioes[k].style.top = topo + "px"; elRegioes[k].style.height = (base - topo) + "px";
+      elRegioes[k]._faixa.style.top = (topo + (k === 0 ? 40 : 44)) + "px";
     });
+    elNuvens.forEach((d, k) => { d.style.top = (60 + k * (yFim / elNuvens.length)) + "px"; });
 
     elDecor.forEach(({el, i}) => {
       const lado = P[i].x > cx ? -1 : 1;           // do lado oposto à trilha
@@ -135,8 +165,9 @@
       return d;
     };
     const tudo = caminho(0, pts.length - 1);
-    svg.innerHTML = `<path d="${tudo}" class="estrada-base"/><path d="${tudo}" class="estrada-meio"/>
-      ${POS > 0 ? `<path d="${caminho(0, POS)}" class="estrada-feita"/>` : ""}`;
+    svg.innerHTML = `<path d="${tudo}" class="estrada-borda"/><path d="${tudo}" class="estrada-base"/>
+      <path d="${tudo}" class="estrada-pedras"/><path d="${tudo}" class="estrada-meio"/>
+      ${POS > 0 ? `<path d="${caminho(0, POS)}" class="estrada-brilho"/><path d="${caminho(0, POS)}" class="estrada-feita"/>` : ""}`;
     posicionarHeroi(POS);
   }
 
@@ -144,7 +175,7 @@
     // ao lado do ponto (virado para o centro), sem cobrir os pontos vizinhos
     const W = mapa.clientWidth, prova = NOS[i].tipo === "prova";
     const lado = P[i].x > W / 2 ? -1 : 1;
-    const dx = prova ? 92 : 66;
+    const dx = prova ? 110 : 66;
     heroi.style.left = Math.max(48, Math.min(W - 48, P[i].x + lado * dx)) + "px";
     heroi.style.top = (P[i].y - 14) + "px";
   }

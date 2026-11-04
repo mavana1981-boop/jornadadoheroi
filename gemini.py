@@ -235,12 +235,22 @@ ESTILO_IMAGEM = ("Ilustração para livro didático infantil: desenho colorido, 
                  "SEM nenhum texto, letra, número ou marca d'água. Assunto: ")
 
 
+ESTILO_CASTELO = ("Ilustração de jogo infantil, colorida e caprichada, vista em três quartos, traço limpo, "
+                  "objeto inteiro e centralizado sobre fundo branco puro e liso (sem sombra no chão, sem cenário em volta), "
+                  "SEM nenhum texto, letra, número ou marca d'água. Mostre: ")
+ESTILO_CENARIO = ("Cenário de fundo para o mapa de um jogo infantil de aventura, pintura digital colorida e alegre, "
+                  "vista de cima levemente inclinada, formato vertical, cores suaves no centro para que uma trilha "
+                  "desenhada por cima fique visível, SEM castelos, SEM pessoas, SEM estradas no centro, "
+                  "SEM nenhum texto, letra, número ou marca d'água. Paisagem: ")
+
+
 class GeminiSemFaturamento(GeminiErro):
     """A chave não pode gerar imagens (sem faturamento ou sem permissão)."""
 
 
-def gerar_imagem(descricao, modelo_preferido=None):
+def gerar_imagem(descricao, modelo_preferido=None, estilo=None, proporcao="1:1"):
     """Gera uma ilustração. Devolve (bytes, mime, modelo_usado)."""
+    estilo = ESTILO_IMAGEM if estilo is None else estilo
     chave = os.environ.get("GEMINI_API_KEY")
     if not chave:
         raise GeminiSemFaturamento("GEMINI_API_KEY não definida.")
@@ -251,9 +261,9 @@ def gerar_imagem(descricao, modelo_preferido=None):
             continue
         vistos.add(m)
         for modalidades in (["IMAGE"], ["TEXT", "IMAGE"]):
-            corpo = {"contents": [{"role": "user", "parts": [{"text": ESTILO_IMAGEM + descricao}]}],
+            corpo = {"contents": [{"role": "user", "parts": [{"text": estilo + descricao}]}],
                      "generationConfig": {"responseModalities": modalidades,
-                                          "imageConfig": {"aspectRatio": "1:1"}}}
+                                          "imageConfig": {"aspectRatio": proporcao}}}
             r = requests.post(GEMINI_URL.format(model=m), params={"key": chave}, json=corpo, timeout=120)
             if r.status_code == 200:
                 for cand in r.json().get("candidates", []):
