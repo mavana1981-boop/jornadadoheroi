@@ -5,7 +5,7 @@
   const tela = $("#tela"), rodape = $("#rodape"), btnCont = $("#btn-continuar");
   const MODO = window.JOGO.modo;
   const FASES = {
-    1: { nome: "Aquecimento", emoji: "🔥", texto: "Cartas mágicas e Verdade ou Mentira para esquentar!" },
+    1: { nome: "Primeiros golpes", emoji: "🔥", texto: "Cartas mágicas e Verdade ou Mentira para esquentar!" },
     2: { nome: "Desafio", emoji: "⚔️", texto: "Jogos para treinar o que vai cair na prova." },
     3: { nome: "Chefão", emoji: "👾", texto: "Cada acerto tira vida do chefão!" },
   };
@@ -67,9 +67,12 @@
     tela.innerHTML = `<div class="desafio">
       <span class="tag">${item.mundo.emoji} ${esc(item.materia)} · ${tag}</span>
       <button class="falar" title="Ouvir">🔊</button>
+      ${(item.paginas || []).length ? `<button class="ver-livro" title="Ver as páginas do livro">📖 pág. ${esc(item.paginas_txt || "")}</button>` : ""}
       ${conteudoHTML}
       <div class="feedback" id="fb"></div></div>`;
     $(".falar", tela).onclick = () => falar(enunciadoFala);
+    const vl = $(".ver-livro", tela);
+    if (vl) vl.onclick = () => { som("clique"); abrirLivro(item.paginas, 0, item.conteudo); };
     return $(".desafio", tela);
   }
 
@@ -235,6 +238,68 @@
     });
   };
 
+
+  /* ----------------- páginas do livro (Aquecimento do Herói) ----------------- */
+  function abrirLivro(fotos, inicio = 0, titulo = "") {
+    if (!fotos || !fotos.length) return;
+    let i = inicio, zoom = false, x0 = null;
+    const ov = document.createElement("div");
+    ov.className = "livro-ov";
+    ov.innerHTML = `<div class="livro-topo"><div><b id="lv-pag"></b><div class="lv-tit">${esc(titulo)}</div></div><button class="livro-x" title="Fechar">✕</button></div>
+      <div class="livro-area" id="lv-area"><img id="lv-img" alt=""></div>
+      <div class="livro-pe"><button class="btn peq branco" id="lv-ant">◀</button><span class="mini" style="color:#fff">Toque na página para ampliar</span><button class="btn peq branco" id="lv-prox">▶</button></div>`;
+    document.body.appendChild(ov);
+    document.body.style.overflow = "hidden";
+    const img = $("#lv-img", ov), area = $("#lv-area", ov);
+    const mostrar = () => {
+      zoom = false; img.classList.remove("zoom"); area.scrollTo(0, 0);
+      img.src = fotos[i].url; img.alt = "Página " + fotos[i].n;
+      $("#lv-pag", ov).textContent = `Página ${fotos[i].n}` + (fotos.length > 1 ? `  (${i + 1} de ${fotos.length})` : "");
+      $("#lv-ant", ov).disabled = i === 0; $("#lv-prox", ov).disabled = i === fotos.length - 1;
+      if (i + 1 < fotos.length) { const pre = new Image(); pre.src = fotos[i + 1].url; }
+    };
+    const fechar = () => { ov.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", tecla); };
+    const ir = d => { const n = i + d; if (n >= 0 && n < fotos.length) { i = n; mostrar(); } };
+    const tecla = e => { if (e.key === "Escape") fechar(); if (e.key === "ArrowRight") ir(1); if (e.key === "ArrowLeft") ir(-1); };
+    $(".livro-x", ov).onclick = fechar;
+    $("#lv-ant", ov).onclick = () => ir(-1);
+    $("#lv-prox", ov).onclick = () => ir(1);
+    img.onclick = () => { zoom = !zoom; img.classList.toggle("zoom", zoom); };
+    area.addEventListener("touchstart", e => { x0 = zoom ? null : e.touches[0].clientX; }, { passive: true });
+    area.addEventListener("touchend", e => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 60) ir(dx < 0 ? 1 : -1);
+    });
+    document.addEventListener("keydown", tecla);
+    mostrar();
+  }
+
+  function leitura() {
+    const blocos = D.leitura || [];
+    if (!blocos.length || MODO === "cartas") return proximo();
+    window.scrollTo({ top: 0 });
+    const lidos = new Set();
+    const total = blocos.reduce((s, b) => s + b.fotos.length, 0);
+    const txt = blocos.length === 1
+      ? `Antes do desafio, leia ${total === 1 ? "a página" : "as " + total + " páginas"} do livro. Toque numa página para abrir!`
+      : `Antes do desafio, dê uma olhada nas páginas do livro de cada assunto da missão. Toque numa página para abrir!`;
+    tela.innerHTML = `<div class="fase-banner" style="padding-bottom:10px"><div class="grande">📖</div><h2>Aquecimento do Herói</h2></div>
+      <div class="mentor" style="margin-bottom:14px"><div class="coruja">🦉</div><div class="balao">${esc(txt)}</div></div>
+      ${blocos.map((b, bi) => `<div class="leitura-bloco" data-b="${bi}" style="--c1:${b.mundo.cor};--c2:${b.mundo.cor2}">
+        <div class="lb-topo"><span class="lb-emoji">${esc(b.emoji)}</span><div><b>${esc(b.titulo)}</b><div class="mini">${esc(b.materia)} · pág. ${esc(b.paginas)}</div></div><span class="lb-ok" id="ok${bi}"></span></div>
+        <div class="lb-tira">${b.fotos.map((f, fi) => `<button class="lb-pag" data-b="${bi}" data-f="${fi}"><img src="${f.url}" alt="Página ${f.n}" loading="lazy"><span>pág. ${f.n}</span></button>`).join("")}</div>
+      </div>`).join("")}`;
+    tela.querySelectorAll(".lb-pag").forEach(el => el.onclick = () => {
+      const b = +el.dataset.b, f = +el.dataset.f;
+      som("clique"); lidos.add(b);
+      $("#ok" + b).textContent = "✅";
+      abrirLivro(blocos[b].fotos, f, blocos[b].titulo);
+    });
+    falar("Aquecimento do herói! " + txt);
+    mostrarContinuar("Já li! Começar o desafio ⚔️", proximo);
+  }
+
   /* ---------------------------- fluxo ---------------------------- */
   function atualizarHud() {
     $("#barra").style.width = Math.round(100 * Math.min(vistos.size, totalUnicos) / Math.max(1, totalUnicos)) + "%";
@@ -262,7 +327,7 @@
     if (D.status === "concluida") {
       tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão hoje! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
     }
-    mostrarContinuar(D.itens.length ? "Começar! ▶" : "Voltar", D.itens.length ? proximo : () => history.back());
+    mostrarContinuar(D.itens.length ? "Começar! ▶" : "Voltar", D.itens.length ? leitura : () => history.back());
   }
 
   function bannerFase(f, depois) {

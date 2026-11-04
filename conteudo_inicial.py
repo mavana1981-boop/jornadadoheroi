@@ -690,6 +690,71 @@ _ING_FRUTAS = {
 }
 
 
+_MAT_PARTES_LITRO = {
+    "titulo": "Partes do litro e mililitros em litros", "emoji": "🫗", "paginas": "251-254",
+    "resumo": "1 litro = 1 000 mililitros (1 L = 1 000 mL). Se dividirmos 1 litro em 1 000 partes iguais, cada parte é 1 mililitro. "
+              "Meio litro é a metade do litro: 500 mL. Um quarto de litro é o litro dividido em 4 partes iguais: 250 mL. "
+              "Vinícius encheu 5 copos iguais com 1 litro de suco: cada copo tem 200 mL (200 × 5 = 1 000). "
+              "Marina bebeu 2 garrafas de 450 mL: 900 mL, menos que 1 litro. "
+              "O bolo de Marcos leva um litro e meio de suco (1 500 mL) na massa e um quarto de litro (250 mL) no recheio: 1 750 mL ao todo. "
+              "O bebedouro do Caramelo, o cão-guia, tem 3 500 mL = 3 000 mL + 500 mL = 3 litros e meio.",
+    "atividades": [
+        N("Meio litro tem quantos mililitros?", 500, "mL", "1 000 ÷ 2 = 500 mL.", "🥛"),
+        N("Um quarto de litro tem quantos mililitros?", 250, "mL", "1 000 ÷ 4 = 250 mL.", "🍶"),
+        N("Vinícius encheu 5 copos iguais com 1 litro de suco. Quantos mL cabem em cada copo?", 200, "mL",
+          "1 000 ÷ 5 = 200 mL (200 × 5 = 1 000).", "🧃"),
+        Q("Marina bebeu 2 garrafas de 450 mL. Ela bebeu mais ou menos de 1 litro?", ["Menos de 1 litro", "Mais de 1 litro", "Exatamente 1 litro"], 0,
+          "450 + 450 = 900 mL, e 900 é menor que 1 000 mL.", "🍾"),
+        N("O bolo leva um litro e meio de suco na massa e um quarto de litro no recheio. Quantos mL ao todo?", 1750, "mL",
+          "1 500 + 250 = 1 750 mL.", "🍰"),
+        Q("O bebedouro do Caramelo tem 3 500 mL. Isso é o mesmo que…",
+          ["3 litros e meio", "35 litros", "3 litros e um quarto", "350 litros"], 0, "3 500 mL = 3 000 mL + 500 mL = 3 L e meio.", "🐕‍🦺"),
+        L("Ligue as medidas iguais", [["1 litro", "1 000 mL"], ["Meio litro", "500 mL"], ["Um quarto de litro", "250 mL"], ["Um litro e meio", "1 500 mL"]]),
+        C("Dividindo 1 litro em 1 000 partes iguais, cada parte é 1 ___.", ["mililitro", "grama", "quilômetro"], 0),
+        VF("Dois copos de meio litro enchem 1 litro.", True, "500 + 500 = 1 000 mL = 1 L.", "🥤"),
+        O("Do menor para o maior", ["250 mL", "Meio litro", "1 litro", "3 litros e meio"], "250 mL < 500 mL < 1 000 mL < 3 500 mL."),
+        F("Quanto vale meio litro e um quarto de litro?", "Meio litro = 500 mL; um quarto de litro = 250 mL.", "🫗"),
+    ],
+}
+
+_MAT_PARTES_KG = {
+    "titulo": "Partes do quilograma e gramas em quilogramas", "emoji": "🍉", "paginas": "256-261",
+    "resumo": "Nas embalagens, a massa vem em gramas (g) ou quilogramas (kg): arroz 1 kg, café 250 g, pipoca 500 g, farinha 5 kg. "
+              "1 kg = 1 000 g: dividindo 1 quilograma em 1 000 partes iguais, cada parte é 1 grama. "
+              "Meio quilograma é o quilo dividido em 2 partes iguais: 500 g. Um quarto de quilograma é o quilo dividido em 4: 250 g. "
+              "Um quilograma e meio = 1 500 g. Formiga e celular têm menos de 1 kg; criança de 8 anos e cadeira têm mais. "
+              "Na balança: laranja 203 g, mamão 638 g, carambola 107 g; juntos dão 948 g, menos de 1 kg. "
+              "A avó comprou meio quilo de uvas, um quarto de morangos e um quarto de ameixas: 500 + 250 + 250 = 1 000 g = 1 kg; "
+              "se cada quarto de quilo custa 2 reais, ela paga 8 reais. O bebê com 3 385 g tem 3 kg e 385 g. "
+              "O prato de 1 265 g tem mais de 1 kg. Dona Ana fez 1 250 g de frango (um quilograma e um quarto); o dobro é 2 500 g.",
+    "atividades": [
+        N("Meio quilograma tem quantos gramas?", 500, "g", "1 000 ÷ 2 = 500 g.", "🎃"),
+        N("Um quarto de quilograma tem quantos gramas?", 250, "g", "1 000 ÷ 4 = 250 g.", "🍉"),
+        N("Um quilograma e meio de cuscuz tem quantos gramas?", 1500, "g", "1 000 + 500 = 1 500 g.", "🌽"),
+        L("Escreva em gramas", [["1 kg de batata-doce", "1 000 g"], ["Meio quilo de inhame", "500 g"],
+                               ["Um quarto de quilo de alho", "250 g"], ["Um quilo e meio de cuscuz", "1 500 g"]]),
+        K("Mais ou menos de 1 kg?", {"Menos de 1 kg": ["🐜 Formiga", "📱 Celular", "🍊 Laranja"],
+                                     "Mais de 1 kg": ["👦 Criança de 8 anos", "🪑 Cadeira", "🍚 Saco de 5 kg de arroz"]}),
+        Q("Laranja 203 g, mamão 638 g e carambola 107 g. Qual fruta tem a MAIOR massa?", ["Mamão", "Laranja", "Carambola"], 0,
+          "638 g é o maior número.", "🥭"),
+        Q("E as três frutas juntas têm mais ou menos de 1 kg?", ["Menos de 1 kg", "Mais de 1 kg"], 0,
+          "203 + 638 + 107 = 948 g, menos que 1 000 g.", "⚖️"),
+        N("A avó comprou meio quilo de uvas, um quarto de quilo de morangos e um quarto de quilo de ameixas. Quantos gramas ao todo?", 1000, "g",
+          "500 + 250 + 250 = 1 000 g = 1 kg.", "🍇"),
+        N("Se cada quarto de quilo de fruta custa 2 reais, quanto a avó paga por 1 kg de frutas?", 8, "reais",
+          "1 kg tem 4 quartos: 4 × 2 = 8 reais.", "💰"),
+        Q("O bebê tem 3 385 g. Isso é o mesmo que…", ["3 kg e 385 g", "33 kg e 85 g", "338 kg e 5 g", "3 g e 385 kg"], 0,
+          "3 385 g = 3 000 g + 385 g = 3 kg e 385 g.", "👶"),
+        Q("O prato de comida de Seu João tem 1 265 g. Ele tem mais ou menos de 1 kg?", ["Mais de 1 kg", "Menos de 1 kg"], 0,
+          "1 265 g é mais que 1 000 g.", "🍽️"),
+        N("Dona Ana preparou 1 250 g de frango. Se fizer o dobro, quantos gramas serão?", 2500, "g", "1 250 + 1 250 = 2 500 g.", "🍗"),
+        VF("1 250 g é o mesmo que um quilograma e um quarto.", True, "1 000 g + 250 g.", "🍗"),
+        C("Dividindo 1 quilograma em 1 000 partes iguais, cada parte é 1 ___.", ["grama", "litro", "metro"], 0),
+        F("Quanto vale meio quilo e um quarto de quilo?", "Meio quilo = 500 g; um quarto de quilo = 250 g.", "⚖️"),
+    ],
+}
+
+
 PROVAS = [
     {"materia": "Geografia", "titulo": "Prova de Geografia", "data": "2026-11-12", "conteudos": [
         _copia("Recursos naturais e a degradação do solo"),
@@ -734,11 +799,13 @@ PROVAS = [
         _MAT_GRAFICOS,
     ]},
     {"materia": "Matemática", "titulo": "Prova de Matemática B3", "data": "2026-11-25", "conteudos": [
-        _copia("Medidas de massa: grama, quilograma e miligrama", paginas="103, 105"),
-        _copia("Medidas de capacidade: litro e mililitro", paginas="108-112, 118-120, 251-254"),
+        _copia("Medidas de massa: grama, quilograma e miligrama", paginas="103-105"),
+        _copia("Medidas de capacidade: litro e mililitro", paginas="108-111, 120"),
+        _MAT_PARTES_LITRO,
         _copia("Dobro, triplo e divisão"),
         _MAT_METADE,
-        _copia("Medidas de comprimento: metro, centímetro, milímetro e quilômetro", paginas="244-248, 256-261"),
+        _copia("Medidas de comprimento: metro, centímetro, milímetro e quilômetro", paginas="244-248"),
         _MAT_INSTRUMENTOS,
+        _MAT_PARTES_KG,
     ]},
 ]

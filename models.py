@@ -213,6 +213,16 @@ class Resposta(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class PaginaFoto(db.Model):
+    """Foto de uma página do livro enviada pelo Painel dos Pais (fica no banco, que é persistente no Railway)."""
+    id = db.Column(db.Integer, primary_key=True)
+    livro = db.Column(db.String(20), default="principal", index=True)
+    pagina = db.Column(db.Integer, nullable=False, index=True)
+    mime = db.Column(db.String(40), default="image/jpeg")
+    dados = db.Column(db.LargeBinary, nullable=False)
+    criada_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Config(db.Model):
     chave = db.Column(db.String(60), primary_key=True)
     valor = db.Column(db.String(500))

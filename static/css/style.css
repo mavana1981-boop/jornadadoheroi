@@ -188,3 +188,31 @@ textarea{min-height:110px}
 .mini{font-size:13px;color:var(--muted)}
 pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white-space:pre-wrap;max-height:220px;overflow:auto}
 .confete{position:fixed;inset:0;pointer-events:none;z-index:50}
+
+/* ---------- páginas do livro ---------- */
+.desafio .ver-livro{display:inline-block;margin:6px 0 0;background:#fff3d6;border:2px solid #ffd166;color:var(--ink);border-radius:999px;
+  padding:4px 12px;font-weight:800;font-size:14px;cursor:pointer}
+.leitura-bloco{background:#fff;border-radius:var(--raio);padding:14px;margin-bottom:14px;box-shadow:var(--sombra);border-top:6px solid var(--c1)}
+.lb-topo{display:flex;gap:10px;align-items:center;color:var(--ink);margin-bottom:10px}
+.lb-topo b{font-family:'Baloo 2';font-size:19px;line-height:1.15}
+.lb-emoji{font-size:34px}
+.lb-ok{margin-left:auto;font-size:24px}
+.lb-tira{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
+.lb-pag{flex:none;scroll-snap-align:start;border:3px solid #ece9ff;background:#faf9ff;border-radius:14px;padding:4px;cursor:pointer;width:118px}
+.lb-pag:active{transform:scale(.97)}
+.lb-pag img{display:block;width:100%;height:150px;object-fit:cover;border-radius:10px}
+.lb-pag span{display:block;font-weight:800;font-size:14px;color:var(--ink);margin-top:3px}
+.livro-ov{position:fixed;inset:0;background:#0d0a26f2;z-index:50;display:flex;flex-direction:column}
+.livro-topo{display:flex;align-items:center;gap:10px;padding:10px 14px;color:#fff}
+.livro-topo .lv-tit{font-size:13px;opacity:.8}
+.livro-x{margin-left:auto;background:#ffffff26;border:0;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer}
+.livro-area{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:0 8px}
+.livro-area img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;background:#fff;cursor:zoom-in}
+.livro-area img.zoom{max-width:none;max-height:none;width:220%;cursor:zoom-out}
+.livro-pe{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 18px}
+.livro-pe .btn{min-width:64px;font-size:22px}
+.tira-paginas{display:flex;gap:10px;overflow-x:auto;padding:4px 0 8px}
+.tira-paginas figure{margin:0;flex:none;width:110px;text-align:center}
+.tira-paginas img{width:110px;height:140px;object-fit:cover;border-radius:10px;border:2px solid #e6e2fb}
+.tira-paginas figcaption{font-size:13px;font-weight:700}
+.tira-paginas .lixo{border:0;background:none;cursor:pointer;font-size:13px}

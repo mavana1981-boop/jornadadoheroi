@@ -1,17 +1,19 @@
 """Jornada do Herói — app de revisão gamificada para o 3º ano (Flask)."""
+import io
 import json
 import os
 import random
+import re
 from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import (Flask, abort, flash, jsonify, redirect, render_template, request,
-                   session, url_for)
+                   send_file, session, url_for)
 
 import gemini
 import missoes
 from conteudo_inicial import PROVAS
-from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, Prova,
+from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, PaginaFoto, Prova,
                     Resposta, db, mundo_de)
 
 app = Flask(__name__)
@@ -59,7 +61,7 @@ CONQUISTAS = [
 # ---------------------------------------------------------------------------
 # Inicialização
 # ---------------------------------------------------------------------------
-VERSAO_CONTEUDO = "2-orientador-3tri"
+VERSAO_CONTEUDO = "3-partes-kg-litro"
 
 
 def _nova_atividade(cont, tipo, dados):
@@ -153,6 +155,101 @@ with app.app_context():
         carregar_conteudo_inicial()
     elif Config.get("conteudo_versao") != VERSAO_CONTEUDO:
         sincronizar_conteudo()
+
+# ---------------------------------------------------------------------------
+# Páginas do livro (fotos) — para o "Aquecimento do Herói"
+# ---------------------------------------------------------------------------
+PASTA_PAGINAS = os.path.join(app.root_path, "static", "paginas")
+
+
+def _paginas_estaticas():
+    try:
+        return {int(m.group(1)) for f in os.listdir(PASTA_PAGINAS) if (m := re.fullmatch(r"p(\d+)\.jpg", f))}
+    except FileNotFoundError:
+        return set()
+
+
+PAGINAS_ESTATICAS = _paginas_estaticas()
+
+
+def livro_de(materia):
+    """Inglês usa outro livro: as páginas dele não se misturam com as do livro principal."""
+    return "ingles" if materia == "Inglês" else "principal"
+
+
+def numeros_paginas(txt):
+    """'112, 118-119' → [112, 118, 119]. Ignora textos entre parênteses, como '(Unit 6)'."""
+    txt = re.sub(r"\([^)]*\)", "", txt or "")
+    nums = []
+    for a, b in re.findall(r"(\d+)(?:\s*[-–a]\s*(\d+))?", txt):
+        a = int(a)
+        b = int(b) if b else a
+        if b < a or b - a > 40:
+            b = a
+        for n in range(a, b + 1):
+            if n not in nums:
+                nums.append(n)
+    return nums
+
+
+def _fotos_enviadas(livro):
+    return {p for (p,) in db.session.query(PaginaFoto.pagina).filter_by(livro=livro).all()}
+
+
+def paginas_de(conteudo, cache=None):
+    """Fotos disponíveis das páginas de um conteúdo: [{'n': 112, 'url': ...}] e as que faltam."""
+    livro = livro_de(conteudo.prova.materia)
+    if cache is not None and livro in cache:
+        enviadas = cache[livro]
+    else:
+        enviadas = _fotos_enviadas(livro)
+        if cache is not None:
+            cache[livro] = enviadas
+    fotos, faltam = [], []
+    for n in numeros_paginas(conteudo.paginas):
+        if n in enviadas or (livro == "principal" and n in PAGINAS_ESTATICAS):
+            fotos.append({"n": n, "url": url_for("pagina_foto", livro=livro, n=n)})
+        else:
+            faltam.append(n)
+    return {"fotos": fotos, "faltam": faltam}
+
+
+def leitura_de(conteudos):
+    """Lista para a tela de leitura: um bloco por conteúdo que tem fotos."""
+    cache, out = {}, []
+    for c in conteudos:
+        p = paginas_de(c, cache)
+        if p["fotos"]:
+            out.append({"id": c.id, "titulo": c.titulo, "emoji": c.emoji, "materia": c.prova.materia,
+                        "paginas": c.paginas, "fotos": p["fotos"], "mundo": c.prova.mundo})
+    return out
+
+
+@app.get("/pagina/<livro>/<int:n>.jpg")
+def pagina_foto(livro, n):
+    f = PaginaFoto.query.filter_by(livro=livro, pagina=n).order_by(PaginaFoto.id.desc()).first()
+    if f:
+        r = send_file(io.BytesIO(f.dados), mimetype=f.mime)
+    elif livro == "principal" and n in PAGINAS_ESTATICAS:
+        r = send_file(os.path.join(PASTA_PAGINAS, f"p{n}.jpg"), mimetype="image/jpeg")
+    else:
+        abort(404)
+    r.headers["Cache-Control"] = "public, max-age=86400"
+    return r
+
+
+def _preparar_foto(bruto):
+    """Gira conforme o celular, reduz e comprime a foto (≈150 KB)."""
+    try:
+        from PIL import Image, ImageOps
+        im = ImageOps.exif_transpose(Image.open(io.BytesIO(bruto))).convert("RGB")
+        im.thumbnail((1100, 1500))
+        out = io.BytesIO()
+        im.save(out, "JPEG", quality=72, optimize=True, progressive=True)
+        return out.getvalue()
+    except Exception:
+        return None
+
 
 
 @app.context_processor
@@ -276,12 +373,25 @@ def loja():
 
 # --------------------------- API do jogo -----------------------------------
 def _pacote(itens_atividade, fases=None):
-    out = []
+    out, cache, pags = [], {}, {}
     for i, a in enumerate(itens_atividade):
         d = a.to_dict()
         d["fase"] = fases[i] if fases else 2
         d["mundo"] = mundo_de(d["materia"])
+        if a.conteudo_id not in pags:
+            pags[a.conteudo_id] = paginas_de(a.conteudo, cache)["fotos"]
+        d["paginas"] = pags[a.conteudo_id]
+        d["paginas_txt"] = a.conteudo.paginas
         out.append(d)
+    return out
+
+
+def _conteudos_em_ordem(itens_atividade):
+    vistos, out = set(), []
+    for a in itens_atividade:
+        if a.conteudo_id not in vistos:
+            vistos.add(a.conteudo_id)
+            out.append(a.conteudo)
     return out
 
 
@@ -303,6 +413,7 @@ def api_missao_itens():
                   "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},
         "chefe": {"nome": chefe["chefao"], "emoji": chefe["chefao_emoji"]},
         "itens": _pacote([p[0] for p in pares], [p[1] for p in pares]),
+        "leitura": leitura_de(_conteudos_em_ordem([p[0] for p in pares])),
     })
 
 
@@ -318,7 +429,7 @@ def api_treino_itens(conteudo_id):
                     "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor,
                               "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},
                     "chefe": {"nome": c.prova.mundo["chefao"], "emoji": c.prova.mundo["chefao_emoji"]},
-                    "itens": _pacote(ativas[:10])})
+                    "itens": _pacote(ativas[:10]), "leitura": leitura_de([c])})
 
 
 @app.get("/api/cartas/<int:prova_id>")
@@ -539,8 +650,10 @@ def pais_conteudo(conteudo_id):
         db.session.commit()
         flash("Conteúdo atualizado.")
         return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+    livro = livro_de(c.prova.materia)
+    enviadas = _fotos_enviadas(livro)
     return render_template("pais/conteudo.html", c=c, gemini_ok=gemini.disponivel(),
-                           exemplos=EXEMPLOS_JSON)
+                           exemplos=EXEMPLOS_JSON, pags=paginas_de(c), livro=livro, enviadas=enviadas)
 
 
 @app.post("/pais/conteudo/novo")
@@ -604,6 +717,48 @@ def pais_gerar(conteudo_id):
     except gemini.GeminiErro as e:
         flash(str(e))
     return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+
+
+@app.post("/pais/conteudo/<int:conteudo_id>/paginas")
+@precisa_pais
+def pais_paginas(conteudo_id):
+    """Envia fotos de páginas do livro. Os números vão na mesma ordem das fotos."""
+    c = db.get_or_404(Conteudo, conteudo_id)
+    livro = livro_de(c.prova.materia)
+    arquivos = [f for f in request.files.getlist("fotos") if f and f.filename]
+    numeros = numeros_paginas(request.form.get("numeros", ""))
+    if not arquivos:
+        flash("Escolha pelo menos uma foto.")
+        return redirect(url_for("pais_conteudo", conteudo_id=c.id) + "#paginas")
+    if len(numeros) != len(arquivos):
+        flash(f"Você enviou {len(arquivos)} foto(s) e {len(numeros)} número(s) de página. Informe um número para cada foto, na mesma ordem.")
+        return redirect(url_for("pais_conteudo", conteudo_id=c.id) + "#paginas")
+    ok = 0
+    for f, n in zip(arquivos, numeros):
+        dados = _preparar_foto(f.read())
+        if not dados:
+            continue
+        PaginaFoto.query.filter_by(livro=livro, pagina=n).delete()
+        db.session.add(PaginaFoto(livro=livro, pagina=n, dados=dados))
+        ok += 1
+    # garante que as páginas enviadas façam parte do conteúdo
+    atuais = numeros_paginas(c.paginas)
+    novas = [n for n in numeros if n not in atuais]
+    if novas:
+        c.paginas = ((c.paginas + ", ") if c.paginas else "") + ", ".join(map(str, novas))
+        c.paginas = c.paginas[:60]
+    db.session.commit()
+    flash(f"{ok} página(s) salvas. Elas já aparecem no Aquecimento do Herói.")
+    return redirect(url_for("pais_conteudo", conteudo_id=c.id) + "#paginas")
+
+
+@app.post("/pais/pagina/<livro>/<int:n>/excluir")
+@precisa_pais
+def pais_pagina_excluir(livro, n):
+    PaginaFoto.query.filter_by(livro=livro, pagina=n).delete()
+    db.session.commit()
+    flash(f"Foto enviada da página {n} removida." + (" A foto original do app continua." if livro == "principal" and n in PAGINAS_ESTATICAS else ""))
+    return redirect(request.form.get("voltar") or url_for("pais"))
 
 
 @app.post("/pais/conteudo/<int:conteudo_id>/manual")

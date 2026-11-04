@@ -21,6 +21,33 @@
     </form>
   </div>
 
+
+  <div class="card" id="paginas" style="margin-bottom:16px">
+    <h2>📖 Páginas do livro <span class="mini">— aparecem no Aquecimento do Herói, antes do desafio</span></h2>
+    {% if pags.fotos %}
+      <div class="tira-paginas">
+        {% for f in pags.fotos %}
+          <figure>
+            <a href="{{ f.url }}" target="_blank"><img src="{{ f.url }}" alt="Página {{ f.n }}" loading="lazy"></a>
+            <figcaption>pág. {{ f.n }}{% if f.n in enviadas %}
+              <form method="post" action="{{ url_for('pais_pagina_excluir', livro=livro, n=f.n) }}" style="display:inline" onsubmit="return confirm('Remover a foto enviada desta página?')">
+                <input type="hidden" name="voltar" value="{{ url_for('pais_conteudo', conteudo_id=c.id) }}#paginas">
+                <button class="lixo" title="Remover foto enviada">🗑️</button></form>{% endif %}</figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="mini">Nenhuma foto de página ainda.</p>
+    {% endif %}
+    {% if pags.faltam %}<div class="aviso">Sem foto: pág. {{ pags.faltam|join(', ') }}</div>{% endif %}
+    <form method="post" action="{{ url_for('pais_paginas', conteudo_id=c.id) }}" enctype="multipart/form-data" class="grid g2" style="align-items:end;margin-top:10px">
+      <div><label>Fotos das páginas</label><input type="file" name="fotos" accept="image/*" multiple required></div>
+      <div><label>Número de cada página, na mesma ordem das fotos</label><input type="text" name="numeros" placeholder="Ex.: 110, 252, 253" required></div>
+      <div><button class="btn verde peq">Enviar páginas</button>
+        <p class="mini">Se a página já tiver foto, a nova substitui. A página entra na lista do conteúdo automaticamente.</p></div>
+    </form>
+  </div>
+
   <div class="grid g2" style="margin-bottom:16px">
     <div class="card">
       <h2>✨ Criar com o Gemini</h2>
