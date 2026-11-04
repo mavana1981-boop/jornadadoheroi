@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}{{ m.nome }}{% endblock %}
+{% block conteudo %}
+<div class="wrap" style="max-width:720px">
+  <div class="topo">
+    <a class="chip" href="{{ url_for('inicio') }}">← Mapa</a>
+    <div class="chips"><a class="chip" href="{{ url_for('cartas', prova_id=prova.id) }}">🃏 Cartas mágicas</a></div>
+  </div>
+  <div class="mundo-card" style="--c1:{{ m.cor }};--c2:{{ m.cor2 }};min-height:140px">
+    <div class="cen">{{ m.cenario }}</div>
+    <span class="contagem">{{ prova.data|data_br }}{% if prova.dias_restantes is not none and prova.dias_restantes >= 0 %} · faltam {{ prova.dias_restantes }} dias{% endif %}</span>
+    <h3 style="font-size:32px">{{ m.emoji }} {{ m.nome }}</h3>
+    <div style="font-weight:700">{{ prova.materia }} — domínio do mundo: {{ prova.dominio }}%</div>
+  </div>
+
+  <p style="color:#fff;opacity:.9;margin:16px 4px">Toque em uma parada da trilha para treinar. Cada ⭐ mostra o quanto você já domina aquele conteúdo.</p>
+
+  <div class="trilha">
+    {% for c in prova.conteudos %}
+      <a class="no" href="{{ url_for('treino', conteudo_id=c.id) }}">
+        <div class="bola d{{ c.caixa }}">{{ c.emoji }}</div>
+        <div class="info">
+          <div style="font-family:'Baloo 2';font-size:20px;font-weight:800">{{ c.titulo }}</div>
+          <div class="estrelinhas">{% for i in range(5) %}{{ '⭐' if i < c.caixa else '☆' }}{% endfor %}</div>
+          <div class="mini" style="color:#fff;opacity:.8">{{ c.atividades_ativas()|length }} desafios{% if c.paginas %} · pág. {{ c.paginas }}{% endif %}</div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="chefao-final">
+    <div class="monstro">{{ m.chefao_emoji }}</div>
+    <h2>{{ m.chefao }}</h2>
+    <p>Vida do chefão: {{ 100 - prova.dominio }}%</p>
+    <div class="hp" style="max-width:320px;margin:0 auto"><i style="width:{{ 100 - prova.dominio }}%"></i></div>
+    <p class="mini" style="color:#fff">Ele perde vida a cada conteúdo que você domina nas missões diárias.</p>
+  </div>
+</div>
+{% endblock %}

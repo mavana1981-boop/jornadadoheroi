@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block titulo %}{{ c.titulo }}{% endblock %}
+{% block body_class %}pais{% endblock %}
+{% block conteudo %}
+<div class="wrap">
+  <p><a href="{{ url_for('pais') }}">← Painel</a></p>
+  <div class="card" style="margin-bottom:16px">
+    <h2>{{ c.emoji }} {{ c.titulo }} <span class="mini">— {{ c.prova.materia }}</span></h2>
+    <form method="post">
+      <div class="grid g3">
+        <div><label>Título</label><input type="text" name="titulo" value="{{ c.titulo }}"></div>
+        <div><label>Emoji</label><input type="text" name="emoji" value="{{ c.emoji }}"></div>
+        <div><label>Páginas</label><input type="text" name="paginas" value="{{ c.paginas }}"></div>
+      </div>
+      <label>Resumo (é a base que o Gemini usa para criar atividades)</label>
+      <textarea name="resumo" style="min-height:150px">{{ c.resumo }}</textarea>
+      <button class="btn roxo peq" style="margin-top:8px">Salvar</button>
+    </form>
+    <form method="post" action="{{ url_for('pais_conteudo_excluir', conteudo_id=c.id) }}" onsubmit="return confirm('Excluir este conteúdo e suas atividades?')" style="margin-top:8px">
+      <button class="btn peq branco">🗑️ Excluir conteúdo</button>
+    </form>
+  </div>
+
+  <div class="grid g2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>✨ Criar com o Gemini</h2>
+      {% if not gemini_ok %}<div class="aviso">Defina a variável GEMINI_API_KEY no Railway para liberar.</div>{% endif %}
+      <form method="post" action="{{ url_for('pais_gerar', conteudo_id=c.id) }}" enctype="multipart/form-data">
+        <label>Tipos de jogo</label>
+        {% for k, v in TIPOS.items() %}<label style="font-weight:600;display:inline-block;margin-right:10px"><input type="checkbox" name="tipos" value="{{ k }}" checked> {{ v }}</label>{% endfor %}
+        <div class="grid g2" style="align-items:end">
+          <div><label>Quantidade</label><input type="number" name="quantidade" value="8" min="1" max="25"></div>
+          <div><label>Fotos extras (opcional)</label><input type="file" name="fotos" accept="image/*" multiple></div>
+        </div>
+        <button class="btn verde peq" style="margin-top:10px" {{ 'disabled' if not gemini_ok }}>Gerar atividades</button>
+        <p class="mini">Leva de 10 a 40 segundos. As novas atividades entram ativas; desative as que não gostar.</p>
+      </form>
+    </div>
+    <div class="card">
+      <h2>✍️ Criar manualmente</h2>
+      <form method="post" action="{{ url_for('pais_manual', conteudo_id=c.id) }}">
+        <label>Tipo</label>
+        <select name="tipo" id="tipo-manual" onchange="document.getElementById('json-manual').value = JSON.stringify(EX[this.value], null, 2)">
+          {% for k, v in TIPOS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+        </select>
+        <label>Dados (JSON)</label>
+        <textarea name="dados" id="json-manual" style="font-family:monospace;font-size:13px;min-height:170px"></textarea>
+        <button class="btn roxo peq" style="margin-top:8px">Adicionar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🎮 Atividades ({{ c.atividades|length }})</h2>
+    <table class="tabela">
+      <tr><th>Tipo</th><th>Conteúdo</th><th>Origem</th><th>Desempenho</th><th></th></tr>
+      {% for a in c.atividades|sort(attribute='id') %}{% set d = a.d() %}
+      <tr id="a{{ a.id }}" style="{{ '' if a.ativa else 'opacity:.45' }}">
+        <td><b>{{ TIPOS[a.tipo] }}</b></td>
+        <td>{{ d.pergunta or d.afirmacao or d.frase or d.titulo or d.frente }}</td>
+        <td><span class="pill">{{ a.origem }}</span></td>
+        <td>{{ (a.acertos ~ '/' ~ a.vezes) if a.vezes else '—' }}</td>
+        <td style="white-space:nowrap">
+          <a class="btn peq branco" href="{{ url_for('pais_previa', aid=a.id) }}">👁️</a>
+          <form method="post" action="{{ url_for('pais_atividade_alternar', aid=a.id) }}" style="display:inline"><button class="btn peq branco">{{ '⏸️' if a.ativa else '▶️' }}</button></form>
+          <form method="post" action="{{ url_for('pais_atividade_excluir', aid=a.id) }}" style="display:inline" onsubmit="return confirm('Excluir?')"><button class="btn peq branco">🗑️</button></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const EX = {{ exemplos|tojson }};
+document.getElementById('json-manual').value = JSON.stringify(EX['quiz'], null, 2);
+</script>
+{% endblock %}

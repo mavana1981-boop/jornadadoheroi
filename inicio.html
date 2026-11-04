@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% block conteudo %}
+<div class="wrap">
+  <div class="topo">
+    <a href="{{ url_for('criar_heroi') }}" style="text-decoration:none">{{ avatar(heroi) }}</a>
+    <div style="flex:1;min-width:0">
+      <div class="nome">{{ heroi.nome }}</div>
+      <div class="sub">Nível {{ heroi.nivel }} · {{ heroi.titulo }}</div>
+      <div class="barra" style="margin-top:6px;max-width:260px"><i style="width:{{ (heroi.xp_no_nivel/3)|round }}%"></i></div>
+    </div>
+    <div class="chips">
+      <span class="chip" title="Dias seguidos">🔥 {{ heroi.streak }}</span>
+      <a class="chip" href="{{ url_for('loja') }}" title="Moedas — abrir a loja">🪙 {{ heroi.moedas }}</a>
+      <span class="chip" title="Experiência">⭐ {{ heroi.xp }}</span>
+    </div>
+  </div>
+
+  {# ---------------- Missão do dia ---------------- #}
+  {% if missao and missao.status == 'concluida' %}
+    <div class="missao-dia feito">
+      <div style="font-weight:800;opacity:.9">MISSÃO DE HOJE</div>
+      <h2>Missão cumprida! {{ '⭐' * missao.estrelas }}</h2>
+      <p style="max-width:70%">Você acertou {{ missao.acertos }} de {{ missao.total }}. Volte amanhã para a próxima aventura — ou treine um mundo abaixo!</p>
+      <div class="bau">🏆</div>
+    </div>
+  {% elif tem_futuras %}
+    <div class="missao-dia">
+      <div style="font-weight:800;opacity:.9">MISSÃO DE HOJE · {{ hoje|data_br }}</div>
+      <h2>{% if missao and missao.tipo == 'batalha_final' %}⚔️ Batalha Final!{% else %}Sua aventura te espera!{% endif %}</h2>
+      <p style="max-width:65%;font-size:17px">{{ missao.titulo if missao else '3 fases: Aquecimento, Desafio e Chefão.' }}</p>
+      <a href="{{ url_for('missao') }}" class="btn branco enorme" style="margin-top:6px">▶ Jogar</a>
+      <div class="bau">🎁</div>
+    </div>
+  {% else %}
+    <div class="missao-dia" style="background:linear-gradient(135deg,#475569,#334155)">
+      <h2>Sem provas marcadas</h2>
+      <p>Peça para um adulto colocar as datas das provas no Painel dos Pais. Enquanto isso, você pode treinar nos mundos!</p>
+    </div>
+  {% endif %}
+
+  {# ---------------- Mundos ---------------- #}
+  <h2 style="color:#fff;font-size:30px;margin:26px 0 12px">🗺️ Mapa dos Mundos</h2>
+  <div class="grid g2">
+    {% for p in provas %}{% set m = p.mundo %}
+      <a class="mundo-card" href="{{ url_for('mundo', prova_id=p.id) }}" style="--c1:{{ m.cor }};--c2:{{ m.cor2 }}">
+        <div class="cen">{{ m.cenario }}</div>
+        <span class="contagem">
+          {% if p.dias_restantes is none %}sem data{% elif p.dias_restantes > 1 %}⏳ faltam {{ p.dias_restantes }} dias
+          {% elif p.dias_restantes == 1 %}🔥 prova amanhã!{% elif p.dias_restantes == 0 %}⚔️ prova hoje!{% else %}✅ prova feita{% endif %}
+        </span>
+        <h3>{{ m.emoji }} {{ m.nome }}</h3>
+        <div style="font-weight:700">{{ p.materia }} · {{ p.conteudos|length }} conteúdos</div>
+        <div class="chefe">{{ m.chefao_emoji }} {{ m.chefao }} — vida: {{ 100 - p.dominio }}%</div>
+        <div class="hp"><i style="width:{{ 100 - p.dominio }}%"></i></div>
+      </a>
+    {% endfor %}
+  </div>
+
+  {# ---------------- Conquistas ---------------- #}
+  <h2 style="color:#fff;font-size:26px;margin:26px 0 12px">🏅 Conquistas</h2>
+  <div class="grid g4">
+    {% for c in conquistas %}
+      <div class="card" style="text-align:center;padding:12px;{{ '' if c.ok else 'opacity:.45;filter:grayscale(1)' }}">
+        <div style="font-size:40px">{{ c.emoji }}</div><div style="font-weight:800">{{ c.nome }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <p style="text-align:center;margin-top:30px"><a class="chip" href="{{ url_for('pais') }}">🔒 Painel dos Pais</a></p>
+</div>
+{% endblock %}

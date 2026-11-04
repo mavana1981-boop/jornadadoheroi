@@ -1,0 +1,627 @@
+"""Jornada do Herói — app de revisão gamificada para o 3º ano (Flask)."""
+import json
+import os
+import random
+from datetime import date, datetime, timedelta
+from functools import wraps
+
+from flask import (Flask, abort, flash, jsonify, redirect, render_template, request,
+                   session, url_for)
+
+import gemini
+import missoes
+from conteudo_inicial import PROVAS
+from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, Prova,
+                    Resposta, db, mundo_de)
+
+app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "troque-esta-chave")
+url_db = os.environ.get("DATABASE_URL", "sqlite:///jornada.db")
+if url_db.startswith("postgres://"):
+    url_db = url_db.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = url_db
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+app.config["MAX_CONTENT_LENGTH"] = 40 * 1024 * 1024
+db.init_app(app)
+
+AVATARES = ["🦸‍♂️", "🧙‍♂️", "🥷", "🧑‍🚀", "🤴", "🦊", "🐲", "🤖", "🦁", "🐼", "⚽", "🦖"]
+CORES = ["#ff8a3d", "#2bb673", "#1fa2ff", "#9b5de5", "#f15bb5", "#ef476f", "#ffbe0b"]
+
+# Loja: itens comprados com moedas e mostrados ao redor do herói
+LOJA = [
+    {"id": "capa", "nome": "Capa Vermelha", "emoji": "🧣", "preco": 30},
+    {"id": "escudo", "nome": "Escudo do Saber", "emoji": "🛡️", "preco": 50},
+    {"id": "espada", "nome": "Espada da Memória", "emoji": "🗡️", "preco": 60},
+    {"id": "bota", "nome": "Botas Velozes", "emoji": "👟", "preco": 40},
+    {"id": "coroa", "nome": "Coroa de Campeão", "emoji": "👑", "preco": 120},
+    {"id": "varinha", "nome": "Varinha Mágica", "emoji": "🪄", "preco": 80},
+    {"id": "bola", "nome": "Bola de Ouro", "emoji": "🏆", "preco": 150},
+    {"id": "pet_coruja", "nome": "Pet Corujinha", "emoji": "🦉", "preco": 90},
+    {"id": "pet_dragao", "nome": "Pet Dragãozinho", "emoji": "🐉", "preco": 200},
+    {"id": "pet_cachorro", "nome": "Pet Cãozinho", "emoji": "🐶", "preco": 70},
+    {"id": "foguete", "nome": "Foguete Turbo", "emoji": "🚀", "preco": 180},
+    {"id": "estrela", "nome": "Estrela Brilhante", "emoji": "🌟", "preco": 100},
+]
+LOJA_POR_ID = {i["id"]: i for i in LOJA}
+
+CONQUISTAS = [
+    ("primeira", "Primeira Missão", "🎯", lambda h, s: s["missoes"] >= 1),
+    ("tres_dias", "3 dias seguidos", "🔥", lambda h, s: h.streak >= 3),
+    ("semana", "7 dias seguidos", "🌋", lambda h, s: h.streak >= 7),
+    ("cem", "100 acertos", "💯", lambda h, s: s["acertos"] >= 100),
+    ("perfeita", "Missão perfeita", "⭐", lambda h, s: s["perfeitas"] >= 1),
+    ("nivel3", "Chegou ao nível 3", "🏅", lambda h, s: h.nivel >= 3),
+    ("dominio", "Dominou um conteúdo", "🧠", lambda h, s: s["dominados"] >= 1),
+    ("colecionador", "Comprou 3 itens", "🎒", lambda h, s: len(h.lista_itens()) >= 3),
+]
+
+
+# ---------------------------------------------------------------------------
+# Inicialização
+# ---------------------------------------------------------------------------
+def carregar_conteudo_inicial():
+    from datetime import date as d_
+    for ordem_p, p in enumerate(PROVAS):
+        prova = Prova(materia=p["materia"], titulo=p["titulo"],
+                      data=d_.fromisoformat(p["data"]) if p.get("data") else None)
+        db.session.add(prova)
+        for ordem, c in enumerate(p["conteudos"]):
+            cont = Conteudo(prova=prova, titulo=c["titulo"], resumo=c["resumo"], paginas=c.get("paginas", ""),
+                            emoji=c.get("emoji", "📘"), ordem=ordem)
+            db.session.add(cont)
+            for tipo, dados in c["atividades"]:
+                v = gemini.validar(tipo, dados)
+                if v:
+                    db.session.add(Atividade(conteudo=cont, tipo=v["tipo"], dados=json.dumps(v["dados"], ensure_ascii=False),
+                                             origem="livro"))
+    Config.set("datas_provisorias", "1")
+    db.session.commit()
+
+
+with app.app_context():
+    db.create_all()
+    if not Prova.query.first():
+        carregar_conteudo_inicial()
+
+
+@app.context_processor
+def contexto():
+    return {"heroi_global": Heroi.query.first(), "TIPOS": TIPOS, "hoje": date.today(),
+            "LOJA_POR_ID": LOJA_POR_ID}
+
+
+@app.template_filter("data_br")
+def data_br(d):
+    if not d:
+        return "sem data"
+    dias = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+    return f"{dias[d.weekday()]}, {d.strftime('%d/%m')}"
+
+
+def precisa_heroi(f):
+    @wraps(f)
+    def w(*a, **k):
+        if not Heroi.query.first():
+            return redirect(url_for("criar_heroi"))
+        return f(*a, **k)
+    return w
+
+
+def precisa_pais(f):
+    @wraps(f)
+    def w(*a, **k):
+        if not session.get("pais"):
+            return redirect(url_for("pais_login", proximo=request.path))
+        return f(*a, **k)
+    return w
+
+
+def estatisticas(heroi):
+    concl = Missao.query.filter_by(status="concluida").all()
+    return {
+        "missoes": len(concl),
+        "acertos": Resposta.query.filter_by(acertou=True).count(),
+        "perfeitas": sum(1 for m in concl if m.total and m.acertos == m.total),
+        "dominados": Conteudo.query.filter(Conteudo.caixa >= 5).count(),
+    }
+
+
+def conquistas_de(heroi):
+    s = estatisticas(heroi)
+    return [{"id": i, "nome": n, "emoji": e, "ok": bool(f(heroi, s))} for i, n, e, f in CONQUISTAS]
+
+
+# ---------------------------------------------------------------------------
+# Área da criança
+# ---------------------------------------------------------------------------
+@app.route("/criar-heroi", methods=["GET", "POST"])
+def criar_heroi():
+    heroi = Heroi.query.first()
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()[:60] or "Herói"
+        if not heroi:
+            heroi = Heroi(nome=nome)
+            db.session.add(heroi)
+        heroi.nome = nome
+        heroi.avatar = request.form.get("avatar") or AVATARES[0]
+        heroi.cor = request.form.get("cor") or CORES[0]
+        heroi.interesses = request.form.get("interesses", "").strip()[:300]
+        db.session.commit()
+        return redirect(url_for("inicio"))
+    return render_template("criar_heroi.html", heroi=heroi, avatares=AVATARES, cores=CORES)
+
+
+@app.route("/")
+@precisa_heroi
+def inicio():
+    heroi = Heroi.query.first()
+    provas = Prova.query.filter_by(ativa=True).order_by(Prova.data).all()
+    hoje = date.today()
+    missao = Missao.query.filter_by(data=hoje).first()
+    tem_futuras = bool(missoes.provas_futuras(hoje))
+    return render_template("inicio.html", heroi=heroi, provas=provas, missao=missao,
+                           tem_futuras=tem_futuras, conquistas=conquistas_de(heroi))
+
+
+@app.route("/mundo/<int:prova_id>")
+@precisa_heroi
+def mundo(prova_id):
+    prova = db.get_or_404(Prova, prova_id)
+    return render_template("mundo.html", prova=prova, m=prova.mundo)
+
+
+@app.route("/missao")
+@precisa_heroi
+def missao():
+    m = missoes.gerar_missao()
+    if not m:
+        flash("Não há provas com data marcada. Peça para um adulto colocar as datas no Painel dos Pais.")
+        return redirect(url_for("inicio"))
+    return render_template("jogar.html", modo="missao", missao=m, titulo=m.titulo,
+                           api=url_for("api_missao_itens"))
+
+
+@app.route("/treino/<int:conteudo_id>")
+@precisa_heroi
+def treino(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    return render_template("jogar.html", modo="treino", missao=None, titulo=c.titulo, conteudo=c,
+                           api=url_for("api_treino_itens", conteudo_id=c.id))
+
+
+@app.route("/cartas/<int:prova_id>")
+@precisa_heroi
+def cartas(prova_id):
+    prova = db.get_or_404(Prova, prova_id)
+    return render_template("jogar.html", modo="cartas", missao=None, titulo=f"Cartas mágicas — {prova.materia}",
+                           api=url_for("api_cartas_itens", prova_id=prova.id))
+
+
+@app.route("/loja")
+@precisa_heroi
+def loja():
+    return render_template("loja.html", heroi=Heroi.query.first(), loja=LOJA)
+
+
+# --------------------------- API do jogo -----------------------------------
+def _pacote(itens_atividade, fases=None):
+    out = []
+    for i, a in enumerate(itens_atividade):
+        d = a.to_dict()
+        d["fase"] = fases[i] if fases else 2
+        d["mundo"] = mundo_de(d["materia"])
+        out.append(d)
+    return out
+
+
+@app.get("/api/missao/hoje")
+def api_missao_itens():
+    m = missoes.gerar_missao()
+    if not m:
+        return jsonify({"erro": "sem missão"}), 404
+    ids = [i["atividade_id"] for i in m.lista_itens()]
+    mapa = {a.id: a for a in Atividade.query.filter(Atividade.id.in_(ids)).all()} if ids else {}
+    pares = [(mapa[i["atividade_id"]], i["fase"]) for i in m.lista_itens() if i["atividade_id"] in mapa]
+    pares.sort(key=lambda x: x[1])
+    heroi = Heroi.query.first()
+    alvo = missoes.provas_futuras(date.today())
+    chefe = alvo[0].mundo if alvo else mundo_de("")
+    return jsonify({
+        "missao_id": m.id, "tipo": m.tipo, "status": m.status, "historia": m.historia, "titulo": m.titulo,
+        "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor,
+                  "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},
+        "chefe": {"nome": chefe["chefao"], "emoji": chefe["chefao_emoji"]},
+        "itens": _pacote([p[0] for p in pares], [p[1] for p in pares]),
+    })
+
+
+@app.get("/api/treino/<int:conteudo_id>")
+def api_treino_itens(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    ativas = c.atividades_ativas()
+    random.shuffle(ativas)
+    heroi = Heroi.query.first()
+    return jsonify({"missao_id": None, "tipo": "treino", "historia":
+                    f"Treino livre, {heroi.nome}! 🦉 Vamos fortalecer o conteúdo: {c.titulo}.",
+                    "titulo": c.titulo,
+                    "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor,
+                              "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},
+                    "chefe": {"nome": c.prova.mundo["chefao"], "emoji": c.prova.mundo["chefao_emoji"]},
+                    "itens": _pacote(ativas[:10])})
+
+
+@app.get("/api/cartas/<int:prova_id>")
+def api_cartas_itens(prova_id):
+    prova = db.get_or_404(Prova, prova_id)
+    cartas_ = [a for c in prova.conteudos for a in c.atividades_ativas() if a.tipo == "flashcard"]
+    random.shuffle(cartas_)
+    heroi = Heroi.query.first()
+    return jsonify({"missao_id": None, "tipo": "cartas", "historia":
+                    f"{heroi.nome}, vire cada carta mágica e diga a resposta em voz alta antes de olhar! 🃏",
+                    "titulo": prova.materia,
+                    "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor, "itens": []},
+                    "chefe": {"nome": prova.mundo["chefao"], "emoji": prova.mundo["chefao_emoji"]},
+                    "itens": _pacote(cartas_[:15])})
+
+
+@app.post("/api/responder")
+def api_responder():
+    dados = request.get_json(force=True)
+    a = db.get_or_404(Atividade, int(dados["atividade_id"]))
+    acertou = bool(dados.get("acertou"))
+    a.vezes += 1
+    a.acertos += 1 if acertou else 0
+    a.ultima_vez = date.today()
+    modo = dados.get("modo", "missao")
+    db.session.add(Resposta(missao_id=dados.get("missao_id"), atividade_id=a.id, acertou=acertou, modo=modo))
+    heroi = Heroi.query.first()
+    if acertou:
+        heroi.xp += 10 if modo == "missao" else 5
+        heroi.moedas += 1
+    db.session.commit()
+    return jsonify({"ok": True, "xp": heroi.xp, "moedas": heroi.moedas})
+
+
+@app.post("/api/concluir")
+def api_concluir():
+    dados = request.get_json(force=True)
+    heroi = Heroi.query.first()
+    modo = dados.get("modo", "missao")
+    acertos, total = int(dados.get("acertos", 0)), int(dados.get("total", 0))
+    taxa = acertos / total if total else 0
+    estrelas = 3 if taxa >= 0.9 else 2 if taxa >= 0.7 else 1
+    bonus_xp, bonus_moedas, nivel_antes = 0, 0, heroi.nivel
+    conquistas_antes = {c["id"] for c in conquistas_de(heroi) if c["ok"]}
+
+    if modo == "missao" and dados.get("missao_id"):
+        m = db.get_or_404(Missao, int(dados["missao_id"]))
+        if m.status != "concluida":
+            hoje = date.today()
+            # repetição espaçada por conteúdo (só primeira resposta de cada atividade)
+            primeiras = {}
+            for r in Resposta.query.filter_by(missao_id=m.id).order_by(Resposta.id).all():
+                primeiras.setdefault(r.atividade_id, r.acertou)
+            por_conteudo = {}
+            for aid, ok in primeiras.items():
+                a = db.session.get(Atividade, aid)
+                if a:
+                    t = por_conteudo.setdefault(a.conteudo_id, [0, 0])
+                    t[0] += 1 if ok else 0
+                    t[1] += 1
+            for cid, (ac, tt) in por_conteudo.items():
+                missoes.atualizar_revisao(db.session.get(Conteudo, cid), ac, tt, hoje)
+            # sequência de dias
+            if heroi.ultimo_dia == hoje - timedelta(days=1):
+                heroi.streak += 1
+            elif heroi.ultimo_dia != hoje:
+                heroi.streak = 1
+            heroi.ultimo_dia = hoje
+            bonus_xp = 30 + estrelas * 10 + min(heroi.streak, 7) * 5
+            bonus_moedas = estrelas * 5 + (10 if m.tipo == "batalha_final" else 0)
+            m.status, m.acertos, m.estrelas = "concluida", acertos, estrelas
+            m.xp_ganho, m.concluida_em = bonus_xp, datetime.utcnow()
+    else:
+        bonus_xp, bonus_moedas = 10, 2
+
+    heroi.xp += bonus_xp
+    heroi.moedas += bonus_moedas
+    db.session.commit()
+    novas = [c for c in conquistas_de(heroi) if c["ok"] and c["id"] not in conquistas_antes]
+    return jsonify({"estrelas": estrelas, "bonus_xp": bonus_xp, "bonus_moedas": bonus_moedas,
+                    "xp": heroi.xp, "moedas": heroi.moedas, "streak": heroi.streak,
+                    "subiu_nivel": heroi.nivel > nivel_antes, "nivel": heroi.nivel, "titulo": heroi.titulo,
+                    "conquistas": novas})
+
+
+@app.post("/api/loja/<item_id>")
+def api_loja(item_id):
+    item = LOJA_POR_ID.get(item_id) or abort(404)
+    heroi = Heroi.query.first()
+    itens, equip = heroi.lista_itens(), heroi.lista_equipados()
+    if item_id in itens:  # alterna equipar
+        if item_id in equip:
+            equip.remove(item_id)
+        else:
+            equip = (equip + [item_id])[-4:]
+    else:
+        if heroi.moedas < item["preco"]:
+            return jsonify({"erro": f"Faltam {item['preco'] - heroi.moedas} moedas!"}), 400
+        heroi.moedas -= item["preco"]
+        itens.append(item_id)
+        equip = (equip + [item_id])[-4:]
+    heroi.itens, heroi.equipados = json.dumps(itens), json.dumps(equip)
+    db.session.commit()
+    return jsonify({"moedas": heroi.moedas, "itens": itens, "equipados": equip})
+
+
+# ---------------------------------------------------------------------------
+# Painel dos pais
+# ---------------------------------------------------------------------------
+@app.route("/pais/login", methods=["GET", "POST"])
+def pais_login():
+    if request.method == "POST":
+        if request.form.get("pin") == os.environ.get("PARENT_PIN", "1234"):
+            session["pais"] = True
+            return redirect(request.args.get("proximo") or url_for("pais"))
+        flash("PIN incorreto.")
+    return render_template("pais/login.html")
+
+
+@app.route("/pais/sair")
+def pais_sair():
+    session.pop("pais", None)
+    return redirect(url_for("inicio"))
+
+
+@app.route("/pais")
+@precisa_pais
+def pais():
+    provas = Prova.query.order_by(Prova.data).all()
+    ultimas = Missao.query.order_by(Missao.data.desc()).limit(14).all()
+    return render_template("pais/painel.html", provas=provas, ultimas=ultimas, plano=missoes.plano_de_revisao,
+                           gemini_ok=gemini.disponivel(), modelo=gemini.modelo(),
+                           tamanho=missoes.tamanho_missao(), heroi=Heroi.query.first(),
+                           provisorias=Config.get("datas_provisorias") == "1", materias=list(MUNDOS.keys()))
+
+
+@app.post("/pais/config")
+@precisa_pais
+def pais_config():
+    Config.set("atividades_por_missao", request.form.get("atividades_por_missao", 12))
+    Config.set("historia_gemini", "1" if request.form.get("historia_gemini") else "0")
+    heroi = Heroi.query.first()
+    if heroi:
+        heroi.interesses = request.form.get("interesses", heroi.interesses)[:300]
+    db.session.commit()
+    flash("Configurações salvas.")
+    return redirect(url_for("pais"))
+
+
+@app.post("/pais/prova")
+@precisa_pais
+def pais_prova_salvar():
+    pid = request.form.get("id")
+    prova = db.session.get(Prova, int(pid)) if pid else Prova()
+    prova.materia = request.form.get("materia", "").strip() or "Outra"
+    prova.titulo = request.form.get("titulo", "").strip() or f"Prova de {prova.materia}"
+    dt = request.form.get("data")
+    prova.data = date.fromisoformat(dt) if dt else None
+    prova.ativa = bool(request.form.get("ativa", "1"))
+    if not pid:
+        db.session.add(prova)
+    Config.set("datas_provisorias", "0")
+    db.session.commit()
+    _refazer_missao_de_hoje()
+    flash("Prova salva. A missão de hoje foi recalculada.")
+    return redirect(url_for("pais"))
+
+
+@app.post("/pais/datas")
+@precisa_pais
+def pais_datas():
+    for prova in Prova.query.all():
+        v = request.form.get(f"data_{prova.id}")
+        if v is not None:
+            prova.data = date.fromisoformat(v) if v else None
+        prova.ativa = bool(request.form.get(f"ativa_{prova.id}"))
+    Config.set("datas_provisorias", "0")
+    db.session.commit()
+    _refazer_missao_de_hoje()
+    flash("Datas atualizadas. As missões passam a seguir o novo calendário.")
+    return redirect(url_for("pais"))
+
+
+@app.post("/pais/prova/<int:prova_id>/excluir")
+@precisa_pais
+def pais_prova_excluir(prova_id):
+    db.session.delete(db.get_or_404(Prova, prova_id))
+    db.session.commit()
+    _refazer_missao_de_hoje()
+    return redirect(url_for("pais"))
+
+
+def _refazer_missao_de_hoje():
+    m = Missao.query.filter_by(data=date.today()).first()
+    if m and m.status != "concluida":
+        Resposta.query.filter_by(missao_id=m.id).delete()
+        db.session.delete(m)
+        db.session.commit()
+
+
+@app.post("/pais/missao/refazer")
+@precisa_pais
+def pais_missao_refazer():
+    _refazer_missao_de_hoje()
+    flash("A missão de hoje será gerada de novo quando o herói entrar.")
+    return redirect(url_for("pais"))
+
+
+@app.route("/pais/conteudo/<int:conteudo_id>", methods=["GET", "POST"])
+@precisa_pais
+def pais_conteudo(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    if request.method == "POST":
+        c.titulo = request.form.get("titulo", c.titulo)[:160]
+        c.emoji = request.form.get("emoji", c.emoji)[:8]
+        c.paginas = request.form.get("paginas", c.paginas)[:60]
+        c.resumo = request.form.get("resumo", c.resumo)
+        db.session.commit()
+        flash("Conteúdo atualizado.")
+        return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+    return render_template("pais/conteudo.html", c=c, gemini_ok=gemini.disponivel(),
+                           exemplos=EXEMPLOS_JSON)
+
+
+@app.post("/pais/conteudo/novo")
+@precisa_pais
+def pais_conteudo_novo():
+    prova = db.get_or_404(Prova, int(request.form["prova_id"]))
+    fotos = [(f.read(), f.mimetype) for f in request.files.getlist("fotos") if f and f.filename]
+    titulo = request.form.get("titulo", "").strip()
+    resumo = request.form.get("resumo", "").strip()
+    c = Conteudo(prova=prova, titulo=titulo or "Novo conteúdo", resumo=resumo,
+                 paginas=request.form.get("paginas", ""), ordem=len(prova.conteudos))
+    db.session.add(c)
+    if fotos or (resumo and request.form.get("gerar")):
+        if not gemini.disponivel():
+            flash("Conteúdo criado, mas o Gemini não está configurado (GEMINI_API_KEY).")
+        else:
+            try:
+                qtd = int(request.form.get("quantidade", 10))
+                if fotos:
+                    r = gemini.extrair_de_fotos(prova.materia, fotos, Heroi.query.first(), qtd)
+                    c.titulo = titulo or r["titulo"]
+                    c.emoji = r["emoji"]
+                    c.resumo = (resumo + "\n\n" if resumo else "") + r["resumo"]
+                    novas = r["atividades"]
+                else:
+                    novas = gemini.gerar_atividades(prova.materia, c.titulo, resumo, list(TIPOS.keys()), qtd,
+                                                    Heroi.query.first())
+                for v in novas:
+                    db.session.add(Atividade(conteudo=c, tipo=v["tipo"], origem="gemini",
+                                             dados=json.dumps(v["dados"], ensure_ascii=False)))
+                flash(f"Conteúdo criado com {len(novas)} atividades geradas pelo Gemini.")
+            except gemini.GeminiErro as e:
+                flash(f"Conteúdo criado, mas o Gemini falhou: {e}")
+    db.session.commit()
+    return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+
+
+@app.post("/pais/conteudo/<int:conteudo_id>/excluir")
+@precisa_pais
+def pais_conteudo_excluir(conteudo_id):
+    db.session.delete(db.get_or_404(Conteudo, conteudo_id))
+    db.session.commit()
+    return redirect(url_for("pais"))
+
+
+@app.post("/pais/conteudo/<int:conteudo_id>/gerar")
+@precisa_pais
+def pais_gerar(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    tipos = request.form.getlist("tipos") or list(TIPOS.keys())
+    qtd = max(1, min(25, int(request.form.get("quantidade", 8))))
+    fotos = [(f.read(), f.mimetype) for f in request.files.getlist("fotos") if f and f.filename]
+    try:
+        novas = gemini.gerar_atividades(c.prova.materia, c.titulo, c.resumo, tipos, qtd,
+                                        Heroi.query.first(), fotos)
+        for v in novas:
+            db.session.add(Atividade(conteudo=c, tipo=v["tipo"], origem="gemini",
+                                     dados=json.dumps(v["dados"], ensure_ascii=False)))
+        db.session.commit()
+        flash(f"{len(novas)} novas atividades criadas pelo Gemini. Confira e desative as que não gostar.")
+    except gemini.GeminiErro as e:
+        flash(str(e))
+    return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+
+
+@app.post("/pais/conteudo/<int:conteudo_id>/manual")
+@precisa_pais
+def pais_manual(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    tipo = request.form.get("tipo")
+    try:
+        dados = json.loads(request.form.get("dados", "{}"))
+    except json.JSONDecodeError:
+        flash("JSON inválido. Confira as aspas e vírgulas.")
+        return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+    v = gemini.validar(tipo, dados)
+    if not v:
+        flash("A atividade não está no formato esperado para esse tipo.")
+    else:
+        db.session.add(Atividade(conteudo=c, tipo=tipo, origem="manual",
+                                 dados=json.dumps(v["dados"], ensure_ascii=False)))
+        db.session.commit()
+        flash("Atividade adicionada.")
+    return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+
+
+@app.post("/pais/atividade/<int:aid>/alternar")
+@precisa_pais
+def pais_atividade_alternar(aid):
+    a = db.get_or_404(Atividade, aid)
+    a.ativa = not a.ativa
+    db.session.commit()
+    return redirect(url_for("pais_conteudo", conteudo_id=a.conteudo_id) + f"#a{a.id}")
+
+
+@app.post("/pais/atividade/<int:aid>/excluir")
+@precisa_pais
+def pais_atividade_excluir(aid):
+    a = db.get_or_404(Atividade, aid)
+    cid = a.conteudo_id
+    db.session.delete(a)
+    db.session.commit()
+    return redirect(url_for("pais_conteudo", conteudo_id=cid))
+
+
+@app.route("/pais/previa/<int:aid>")
+@precisa_pais
+def pais_previa(aid):
+    a = db.get_or_404(Atividade, aid)
+    return render_template("jogar.html", modo="previa", missao=None, titulo="Prévia",
+                           api=url_for("api_previa", aid=a.id))
+
+
+@app.get("/api/previa/<int:aid>")
+@precisa_pais
+def api_previa(aid):
+    a = db.get_or_404(Atividade, aid)
+    heroi = Heroi.query.first()
+    return jsonify({"missao_id": None, "tipo": "previa", "historia": "Prévia da atividade.", "titulo": "Prévia",
+                    "heroi": {"nome": heroi.nome if heroi else "Herói", "avatar": heroi.avatar if heroi else "🦸‍♂️",
+                              "cor": "#ff8a3d", "itens": []},
+                    "chefe": {"nome": "Chefão", "emoji": "👾"}, "itens": _pacote([a])})
+
+
+@app.post("/pais/reiniciar-progresso")
+@precisa_pais
+def pais_reiniciar():
+    Resposta.query.delete()
+    Missao.query.delete()
+    for c in Conteudo.query.all():
+        c.caixa, c.proxima_revisao, c.ultima_revisao, c.acertos, c.erros = 0, None, None, 0, 0
+    for a in Atividade.query.all():
+        a.vezes, a.acertos, a.ultima_vez = 0, 0, None
+    db.session.commit()
+    flash("Progresso de revisão reiniciado (XP, moedas e itens do herói foram mantidos).")
+    return redirect(url_for("pais"))
+
+
+EXEMPLOS_JSON = {
+    "quiz": {"pergunta": "Quantas faces tem o cubo?", "opcoes": ["6", "4", "8"], "correta": 0, "explicacao": "", "emoji": "🎲"},
+    "vf": {"afirmacao": "O cone é um corpo redondo.", "resposta": True, "explicacao": "", "emoji": "🍦"},
+    "completar": {"frase": "1 metro tem ___ centímetros.", "opcoes": ["100", "10", "1000"], "correta": 0, "explicacao": ""},
+    "contas": {"pergunta": "Qual é o dobro de 7?", "resposta": 14, "unidade": "", "explicacao": "2 × 7 = 14", "emoji": "✌️"},
+    "ligar": {"titulo": "Ligue", "pares": [["Gelo", "Sólido"], ["Vapor", "Gasoso"], ["Chuva", "Líquido"]]},
+    "memoria": {"titulo": "Memória", "pares": [["🐶", "AU-AU"], ["🐱", "MIAU"], ["🐦", "PIU-PIU"]]},
+    "ordenar": {"titulo": "Ordene", "itens": ["Evaporação", "Condensação", "Precipitação"], "explicacao": ""},
+    "categorizar": {"titulo": "Separe", "categorias": ["Público", "Privado"],
+                    "itens": [{"texto": "Praça", "categoria": "Público"}, {"texto": "Clube", "categoria": "Privado"},
+                              {"texto": "Parque", "categoria": "Público"}]},
+    "flashcard": {"frente": "O que é perímetro?", "verso": "A medida do contorno de uma figura.", "emoji": "🔲"},
+}
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))

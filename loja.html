@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_avatar.html" import avatar %}
+{% block titulo %}Loja do Herói{% endblock %}
+{% block conteudo %}
+<div class="wrap">
+  <div class="topo">
+    <a class="chip" href="{{ url_for('inicio') }}">← Mapa</a>
+    <div class="chips"><span class="chip" id="moedas">🪙 {{ heroi.moedas }}</span></div>
+  </div>
+  <div style="text-align:center;color:#fff;margin-bottom:18px">
+    <div id="avatar-box" style="display:inline-block">{{ avatar(heroi, true) }}</div>
+    <h1 style="font-size:36px;margin-top:10px">Loja do Herói</h1>
+    <p>Ganhe moedas nas missões e equipe seu herói! (até 4 itens ao mesmo tempo)</p>
+  </div>
+  <div class="grid g4">
+    {% set meus = heroi.lista_itens() %}{% set equip = heroi.lista_equipados() %}
+    {% for i in loja %}
+      <div class="card item-loja {{ 'tem' if i.id in meus }}" id="it-{{ i.id }}">
+        <div class="e">{{ i.emoji }}</div>
+        <div style="font-weight:800">{{ i.nome }}</div>
+        <button class="btn peq {{ 'verde' if i.id in equip else ('roxo' if i.id in meus else '') }}" style="margin-top:8px" onclick="comprar('{{ i.id }}')">
+          {% if i.id in equip %}Equipado ✓{% elif i.id in meus %}Equipar{% else %}🪙 {{ i.preco }}{% endif %}
+        </button>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function comprar(id){
+  const r = await fetch('/api/loja/'+id,{method:'POST'});
+  const j = await r.json();
+  if(!r.ok){ alert(j.erro); return; }
+  location.reload();
+}
+</script>
+{% endblock %}

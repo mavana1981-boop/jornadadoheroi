@@ -1,0 +1,190 @@
+:root{
+  --bg:#1b1446; --bg2:#2a1f6b; --card:#ffffff; --ink:#1f1a3d; --muted:#6b6790;
+  --ok:#22c55e; --erro:#ef4444; --ouro:#ffbe0b; --roxo:#7c3aed; --rosa:#f15bb5;
+  --raio:22px; --sombra:0 8px 0 rgba(0,0,0,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font-family:"Nunito",system-ui,sans-serif;color:var(--ink);min-height:100vh;
+  background:radial-gradient(1200px 600px at 20% -10%,#4b2fb3 0,transparent 60%),
+             radial-gradient(900px 500px at 110% 10%,#b8318f 0,transparent 55%),var(--bg);}
+h1,h2,h3,.titulo{font-family:"Baloo 2","Nunito",system-ui,sans-serif;line-height:1.05;margin:0}
+a{color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+.estrelas-bg{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(2px 2px at 20px 30px,#fff8,transparent),radial-gradient(1.5px 1.5px at 120px 80px,#fff6,transparent),
+  radial-gradient(2px 2px at 220px 160px,#fff7,transparent),radial-gradient(1px 1px at 320px 40px,#fff9,transparent);
+  background-size:360px 220px;animation:pisca 6s linear infinite}
+@keyframes pisca{50%{opacity:.6}}
+main{position:relative;z-index:1}
+
+/* ---------- topo do herói ---------- */
+.topo{display:flex;align-items:center;gap:12px;color:#fff;padding:10px 0 14px}
+.avatar{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-size:38px;
+  background:var(--cor,#ff8a3d);box-shadow:0 0 0 4px #fff3,0 6px 0 #0003;position:relative;flex:none}
+.avatar.grande{width:120px;height:120px;font-size:72px}
+.avatar .equip{position:absolute;font-size:22px}
+.avatar.grande .equip{font-size:34px}
+.avatar .e0{right:-8px;top:-6px}.avatar .e1{left:-10px;top:-4px}.avatar .e2{right:-10px;bottom:-4px}.avatar .e3{left:-8px;bottom:-6px}
+.topo .nome{font-family:"Baloo 2";font-size:24px;font-weight:800}
+.topo .sub{opacity:.85;font-size:14px}
+.chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chip{background:#ffffff1f;border:2px solid #ffffff33;color:#fff;border-radius:999px;padding:6px 12px;font-weight:800;font-size:15px;white-space:nowrap;text-decoration:none}
+.barra{height:12px;border-radius:99px;background:#ffffff2a;overflow:hidden}
+.barra>i{display:block;height:100%;background:linear-gradient(90deg,var(--ouro),#ff8a3d);border-radius:99px;transition:width .6s}
+
+/* ---------- cartões ---------- */
+.card{background:var(--card);border-radius:var(--raio);padding:18px;box-shadow:var(--sombra)}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:1fr 1fr}
+@media(min-width:720px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+  font-family:"Baloo 2";font-weight:800;font-size:20px;padding:12px 22px;border-radius:18px;
+  background:var(--ouro);color:#3b2600;box-shadow:0 6px 0 #c98f00;text-decoration:none;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #c98f00}
+.btn.roxo{background:var(--roxo);color:#fff;box-shadow:0 6px 0 #4c1d95}
+.btn.verde{background:var(--ok);color:#fff;box-shadow:0 6px 0 #15803d}
+.btn.branco{background:#fff;color:var(--ink);box-shadow:0 6px 0 #c7c3e6}
+.btn.peq{font-size:15px;padding:8px 14px;border-radius:14px;box-shadow:0 4px 0 #0002}
+.btn.enorme{font-size:28px;padding:18px 34px;border-radius:24px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- missão do dia ---------- */
+.missao-dia{position:relative;overflow:hidden;color:#fff;border-radius:28px;padding:22px;
+  background:linear-gradient(135deg,#ff8a3d,#f15bb5 55%,#7c3aed);box-shadow:0 10px 0 #0004}
+.missao-dia h2{font-size:32px}
+.missao-dia .bau{position:absolute;right:16px;bottom:-6px;font-size:96px;filter:drop-shadow(0 6px 0 #0003);animation:flutua 3s ease-in-out infinite}
+@keyframes flutua{50%{transform:translateY(-10px) rotate(-4deg)}}
+.feito{background:linear-gradient(135deg,#22c55e,#06b6d4)}
+
+/* ---------- mapa de mundos ---------- */
+.mundo-card{position:relative;overflow:hidden;color:#fff;border-radius:26px;padding:18px;min-height:170px;text-decoration:none;
+  background:linear-gradient(140deg,var(--c1),var(--c2));box-shadow:0 8px 0 #0003;display:flex;flex-direction:column;gap:6px;transition:transform .15s}
+.mundo-card:hover{transform:translateY(-3px) rotate(-.5deg)}
+.mundo-card .cen{position:absolute;right:10px;top:8px;font-size:40px;opacity:.9;letter-spacing:4px}
+.mundo-card h3{font-size:24px;margin-top:22px}
+.mundo-card .chefe{font-size:13px;opacity:.95}
+.contagem{display:inline-block;background:#0003;border-radius:12px;padding:4px 10px;font-weight:800}
+.hp{height:14px;border-radius:99px;background:#0003;overflow:hidden;margin-top:auto}
+.hp>i{display:block;height:100%;background:linear-gradient(90deg,#ff4d6d,#ff8fa3)}
+
+/* ---------- trilha do mundo ---------- */
+.trilha{position:relative;display:flex;flex-direction:column;gap:18px;padding:10px 0 40px}
+.no{display:flex;align-items:center;gap:14px;text-decoration:none;color:#fff}
+.no:nth-child(even){flex-direction:row-reverse;text-align:right}
+.no .bola{width:86px;height:86px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:42px;
+  background:#fff;box-shadow:0 8px 0 #0003,inset 0 -6px 0 #0001;position:relative}
+.no .bola.d0{background:#e9e6ff}.no .bola.d5{background:linear-gradient(135deg,#ffe066,#ffbe0b)}
+.no .info{background:#ffffff1a;border:2px solid #ffffff2a;border-radius:18px;padding:10px 14px;flex:1}
+.no .estrelinhas{letter-spacing:2px}
+.chefao-final{text-align:center;color:#fff;padding:20px;border-radius:26px;background:#0003;border:3px dashed #fff5}
+.chefao-final .monstro{font-size:90px;animation:flutua 2.4s infinite}
+
+/* ---------- palco do jogo ---------- */
+.palco{max-width:760px;margin:0 auto;padding:12px 14px 120px}
+.hud{display:flex;align-items:center;gap:10px;color:#fff;margin-bottom:12px}
+.hud .progresso{flex:1}
+.fase-banner{color:#fff;text-align:center;padding:30px 10px}
+.fase-banner .grande{font-size:84px}
+.fase-banner h2{font-size:38px}
+.desafio{background:#fff;border-radius:28px;padding:22px 18px;box-shadow:0 10px 0 #0003;position:relative;animation:entra .35s ease}
+@keyframes entra{from{transform:translateY(20px) scale(.97);opacity:0}}
+.desafio .tag{display:inline-flex;gap:6px;align-items:center;background:#f1edff;color:var(--roxo);border-radius:99px;padding:4px 12px;font-weight:800;font-size:13px}
+.desafio .enunciado{font-family:"Baloo 2";font-size:28px;font-weight:700;margin:12px 0 16px;line-height:1.15}
+.desafio .emoji-grande{font-size:64px;text-align:center;margin:4px 0}
+.falar{position:absolute;top:14px;right:14px;border:0;background:#f1edff;border-radius:50%;width:44px;height:44px;font-size:22px;cursor:pointer}
+.opcoes{display:grid;gap:12px}
+@media(min-width:620px){.opcoes.duas{grid-template-columns:1fr 1fr}}
+.op{border:3px solid #e4e0fb;background:#faf9ff;border-radius:18px;padding:14px 16px;font-size:21px;font-weight:800;
+  text-align:left;cursor:pointer;font-family:inherit;color:var(--ink);box-shadow:0 5px 0 #e4e0fb;transition:transform .08s}
+.op:active{transform:translateY(3px)}
+.op.certa{border-color:var(--ok);background:#dcfce7;box-shadow:0 5px 0 #86efac}
+.op.errada{border-color:var(--erro);background:#fee2e2;box-shadow:0 5px 0 #fca5a5;animation:treme .4s}
+.op.sel{border-color:var(--roxo);background:#ede9fe}
+.op.feito{opacity:.35;pointer-events:none}
+@keyframes treme{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.vf{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.vf .op{text-align:center;font-size:26px;padding:22px}
+.lacuna{display:inline-block;min-width:90px;border-bottom:4px dashed var(--roxo);color:var(--roxo);text-align:center}
+.feedback{margin-top:16px;border-radius:18px;padding:14px 16px;font-weight:700;font-size:18px;display:none}
+.feedback.ok{display:block;background:#dcfce7;color:#14532d}
+.feedback.nao{display:block;background:#fff1f2;color:#881337}
+.colunas{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.colunas .op{font-size:17px;padding:12px;text-align:center}
+.memoria{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(min-width:620px){.memoria{grid-template-columns:repeat(4,1fr)}}
+.carta-m{aspect-ratio:3/4;perspective:600px;cursor:pointer}
+.carta-m .in{position:relative;width:100%;height:100%;transition:transform .45s;transform-style:preserve-3d}
+.carta-m.virada .in{transform:rotateY(180deg)}
+.carta-m .f,.carta-m .v{position:absolute;inset:0;border-radius:16px;display:grid;place-items:center;backface-visibility:hidden;padding:6px;text-align:center;font-weight:800}
+.carta-m .f{background:linear-gradient(135deg,#7c3aed,#f15bb5);color:#fff;font-size:34px;box-shadow:0 5px 0 #4c1d95}
+.carta-m .v{background:#fff;border:3px solid #e4e0fb;transform:rotateY(180deg);font-size:16px}
+.carta-m.par .v{border-color:var(--ok);background:#dcfce7}
+.ordem-alvo{min-height:60px;border:3px dashed #d8d2fb;border-radius:18px;padding:8px;display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.ordem-alvo .op{padding:10px 14px;font-size:18px}
+.baus{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:14px}
+.bau-cat{border:0;border-radius:18px;padding:14px 8px;font-weight:800;font-size:18px;color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 6px 0 #0003}
+.bau-cat .cont{display:block;font-size:13px;opacity:.9;margin-top:4px}
+.item-vez{text-align:center;font-size:28px;font-weight:800;font-family:"Baloo 2";padding:20px;border-radius:20px;background:#faf9ff;border:3px solid #e4e0fb;animation:entra .3s}
+.flash{perspective:900px;height:300px;cursor:pointer;margin-bottom:14px}
+.flash .in{position:relative;height:100%;transition:transform .6s;transform-style:preserve-3d}
+.flash.virada .in{transform:rotateY(180deg)}
+.flash .f,.flash .v{position:absolute;inset:0;border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;text-align:center;backface-visibility:hidden;font-family:"Baloo 2";font-size:28px;font-weight:700}
+.flash .f{background:linear-gradient(135deg,#1fa2ff,#7c3aed);color:#fff}
+.flash .v{background:#fffbea;border:4px solid var(--ouro);transform:rotateY(180deg)}
+.flash .dica{font-family:Nunito;font-size:14px;opacity:.85;margin-top:12px}
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:340px;margin:10px auto 0}
+.teclado button{font-size:26px;font-weight:800;padding:14px;border-radius:16px;border:0;background:#f1edff;color:var(--ink);box-shadow:0 5px 0 #d8d2fb;cursor:pointer;font-family:"Baloo 2"}
+.visor{font-family:"Baloo 2";font-size:44px;text-align:center;border:4px solid #e4e0fb;border-radius:18px;padding:6px;min-height:72px;background:#faf9ff}
+.visor small{font-size:22px;color:var(--muted)}
+.rodape-jogo{position:fixed;left:0;right:0;bottom:0;padding:14px;display:flex;justify-content:center;
+  background:linear-gradient(transparent,#1b1446ee 30%);z-index:5}
+.rodape-jogo .btn{min-width:240px}
+
+/* ---------- chefão ---------- */
+.arena{display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:10px;gap:10px}
+.arena .lado{text-align:center;flex:1}
+.arena .monstro{font-size:64px;display:inline-block;transition:transform .2s}
+.arena .monstro.dano{animation:dano .5s}
+@keyframes dano{20%{transform:translateX(-10px) rotate(-12deg);filter:brightness(2)}60%{transform:translateX(10px) rotate(8deg)}}
+.arena .vs{font-family:"Baloo 2";font-size:30px;font-weight:800;color:var(--ouro)}
+
+/* ---------- final ---------- */
+.final{text-align:center;color:#fff;padding:20px 8px}
+.final .estrelas{font-size:70px;letter-spacing:6px}
+.final .estrelas span{display:inline-block;animation:pop .5s backwards}
+.final .estrelas span:nth-child(2){animation-delay:.25s}.final .estrelas span:nth-child(3){animation-delay:.5s}
+@keyframes pop{from{transform:scale(0) rotate(-90deg)}}
+.premio{display:inline-flex;gap:8px;align-items:center;background:#ffffff1f;border-radius:16px;padding:10px 16px;font-weight:800;font-size:20px;margin:4px}
+.mentor{display:flex;gap:12px;align-items:flex-start;color:var(--ink)}
+.mentor .coruja{font-size:64px;flex:none;animation:flutua 3s infinite}
+.mentor .balao{background:#fff;border-radius:22px;padding:16px 18px;font-size:19px;line-height:1.4;position:relative;box-shadow:var(--sombra)}
+
+/* ---------- loja ---------- */
+.item-loja{text-align:center}
+.item-loja .e{font-size:56px}
+.item-loja.tem{outline:4px solid var(--ok)}
+
+/* ---------- formulários / pais ---------- */
+label{font-weight:800;display:block;margin:10px 0 4px}
+input[type=text],input[type=date],input[type=number],input[type=password],textarea,select{
+  width:100%;border:2px solid #dcd8f3;border-radius:14px;padding:10px 12px;font:inherit;font-size:16px;background:#fff}
+textarea{min-height:110px}
+.pais body,.pais{background:#f4f2ff}
+.pais .card{box-shadow:0 2px 10px #2a1f6b14}
+.tabela{width:100%;border-collapse:collapse;font-size:15px}
+.tabela th,.tabela td{padding:8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+.pill{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:800;background:#eee}
+.pill.novo{background:#e0e7ff;color:#3730a3}.pill.hoje{background:#fee2e2;color:#991b1b}.pill.ok{background:#dcfce7;color:#166534}
+.aviso{background:#fff7d6;border:2px solid #ffd966;border-radius:16px;padding:12px 14px;font-weight:700}
+.flashes{list-style:none;padding:0;margin:0 0 12px}
+.flashes li{background:#fff;border-left:6px solid var(--roxo);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-weight:700}
+.escolha{display:flex;flex-wrap:wrap;gap:8px}
+.escolha input{display:none}
+.escolha label{margin:0;cursor:pointer;border:3px solid transparent;border-radius:16px;padding:6px 10px;font-size:34px;background:#f4f2ff}
+.escolha input:checked+label{border-color:var(--roxo);background:#ede9fe}
+.cor-bola{width:44px;height:44px;border-radius:50%;padding:0!important}
+.mini{font-size:13px;color:var(--muted)}
+pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white-space:pre-wrap;max-height:220px;overflow:auto}
+.confete{position:fixed;inset:0;pointer-events:none;z-index:50}

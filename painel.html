@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block titulo %}Painel dos Pais{% endblock %}
+{% block body_class %}pais{% endblock %}
+{% block conteudo %}
+<div class="wrap">
+  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 16px">
+    <h1 style="font-size:32px">🔒 Painel dos Pais</h1>
+    <span style="margin-left:auto"></span>
+    <a class="btn peq branco" href="{{ url_for('inicio') }}">🎮 Ver o jogo</a>
+    <a class="btn peq branco" href="{{ url_for('pais_sair') }}">Sair</a>
+  </div>
+
+  {% if provisorias %}
+    <div class="aviso" style="margin-bottom:14px">⚠️ As datas abaixo são provisórias. Coloque as datas reais das provas — as missões diárias são montadas a partir delas.</div>
+  {% endif %}
+
+  {# ---------------- Calendário de provas ---------------- #}
+  <div class="card" style="margin-bottom:16px">
+    <h2>📅 Calendário de provas</h2>
+    <form method="post" action="{{ url_for('pais_datas') }}">
+      <table class="tabela">
+        <tr><th>Mundo</th><th>Matéria</th><th>Data da prova</th><th>Ativa</th><th>Domínio</th><th></th></tr>
+        {% for p in provas %}
+        <tr>
+          <td>{{ p.mundo.emoji }} {{ p.mundo.nome }}</td>
+          <td><b>{{ p.materia }}</b><div class="mini">{{ p.conteudos|length }} conteúdos</div></td>
+          <td><input type="date" name="data_{{ p.id }}" value="{{ p.data.isoformat() if p.data else '' }}" style="max-width:170px"></td>
+          <td><input type="checkbox" name="ativa_{{ p.id }}" {{ 'checked' if p.ativa }}></td>
+          <td>{{ p.dominio }}%</td>
+          <td><button form="del{{ p.id }}" class="btn peq branco" onclick="return confirm('Excluir a prova e todos os conteúdos?')">🗑️</button></td>
+        </tr>
+        {% endfor %}
+      </table>
+      <button class="btn roxo peq" style="margin-top:10px">Salvar datas</button>
+    </form>
+    {% for p in provas %}<form id="del{{ p.id }}" method="post" action="{{ url_for('pais_prova_excluir', prova_id=p.id) }}"></form>{% endfor %}
+
+    <details style="margin-top:14px"><summary><b>+ Nova prova / matéria</b></summary>
+      <form method="post" action="{{ url_for('pais_prova_salvar') }}" class="grid g3" style="align-items:end">
+        <div><label>Matéria</label><input type="text" name="materia" list="materias" required>
+          <datalist id="materias">{% for m in materias %}<option value="{{ m }}">{% endfor %}</datalist></div>
+        <div><label>Título</label><input type="text" name="titulo" placeholder="Ex.: Avaliação bimestral"></div>
+        <div><label>Data</label><input type="date" name="data" required></div>
+        <div><button class="btn verde peq">Criar prova</button></div>
+      </form>
+      <p class="mini">Matérias com mundo próprio: {{ materias|join(', ') }}. Outras viram a "Ilha Misteriosa".</p>
+    </details>
+  </div>
+
+  {# ---------------- Conteúdos por prova ---------------- #}
+  {% for p in provas %}
+  <div class="card" style="margin-bottom:16px">
+    <h2>{{ p.mundo.emoji }} {{ p.materia }} <span class="mini">— {{ p.data|data_br }}{% if p.dias_restantes is not none and p.dias_restantes >= 0 %} · faltam {{ p.dias_restantes }} dias{% endif %}</span></h2>
+    <table class="tabela" style="margin-top:8px">
+      <tr><th>Conteúdo</th><th>Atividades</th><th>Domínio</th><th>Próxima revisão</th><th>Acertos</th></tr>
+      {% for linha in plano(p) %}{% set c = linha.c %}
+      <tr>
+        <td><a href="{{ url_for('pais_conteudo', conteudo_id=c.id) }}"><b>{{ c.emoji }} {{ c.titulo }}</b></a><div class="mini">pág. {{ c.paginas or '—' }}</div></td>
+        <td>{{ c.atividades_ativas()|length }}</td>
+        <td>{% for i in range(5) %}{{ '★' if i < c.caixa else '☆' }}{% endfor %}</td>
+        <td><span class="pill {{ 'novo' if linha.status == 'novo' else ('hoje' if linha.status == 'para hoje' else 'ok') }}">{{ linha.status }}</span></td>
+        <td>{% set t = c.acertos + c.erros %}{{ ((100 * c.acertos / t)|round|int ~ '%') if t else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <details style="margin-top:12px"><summary><b>+ Adicionar conteúdo nesta prova</b> {% if gemini_ok %}<span class="mini">(pode mandar fotos das páginas: o Gemini lê e cria as atividades)</span>{% endif %}</summary>
+      <form method="post" action="{{ url_for('pais_conteudo_novo') }}" enctype="multipart/form-data">
+        <input type="hidden" name="prova_id" value="{{ p.id }}">
+        <div class="grid g2">
+          <div><label>Título</label><input type="text" name="titulo" placeholder="Deixe em branco para o Gemini sugerir"></div>
+          <div><label>Páginas</label><input type="text" name="paginas" placeholder="Ex.: 120-125"></div>
+        </div>
+        <label>Resumo / o que vai cair</label>
+        <textarea name="resumo" placeholder="Cole aqui o que está na planilha de estudo dirigido ou o resumo da matéria."></textarea>
+        <div class="grid g3" style="align-items:end">
+          <div><label>Fotos das páginas (opcional)</label><input type="file" name="fotos" accept="image/*" multiple></div>
+          <div><label>Quantas atividades</label><input type="number" name="quantidade" value="10" min="3" max="25"></div>
+          <div><label><input type="checkbox" name="gerar" value="1" checked> Gerar atividades com o Gemini</label></div>
+        </div>
+        <button class="btn verde peq" style="margin-top:10px">Criar conteúdo</button>
+      </form>
+    </details>
+  </div>
+  {% endfor %}
+
+  {# ---------------- Histórico ---------------- #}
+  <div class="grid g2">
+    <div class="card">
+      <h2>🗓️ Últimas missões</h2>
+      <table class="tabela">
+        <tr><th>Dia</th><th>Missão</th><th>Resultado</th></tr>
+        {% for m in ultimas %}
+        <tr><td>{{ m.data|data_br }}</td><td>{{ '⚔️ ' if m.tipo == 'batalha_final' }}{{ m.titulo }}</td>
+          <td>{% if m.status == 'concluida' %}{{ m.acertos }}/{{ m.total }} {{ '⭐' * m.estrelas }}{% else %}<span class="pill novo">não feita</span>{% endif %}</td></tr>
+        {% else %}<tr><td colspan="3" class="mini">Nenhuma missão ainda.</td></tr>{% endfor %}
+      </table>
+      <form method="post" action="{{ url_for('pais_missao_refazer') }}" style="margin-top:10px">
+        <button class="btn peq branco">↻ Recalcular a missão de hoje</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Configurações</h2>
+      <form method="post" action="{{ url_for('pais_config') }}">
+        <label>Atividades por missão diária</label>
+        <input type="number" name="atividades_por_missao" value="{{ tamanho }}" min="6" max="30">
+        <p class="mini">12 atividades ≈ 15 a 20 minutos.</p>
+        <label>Interesses do herói (personalizam as atividades do Gemini)</label>
+        <input type="text" name="interesses" value="{{ heroi.interesses if heroi else '' }}" placeholder="futebol, dinossauros…">
+        <label><input type="checkbox" name="historia_gemini" value="1" checked> Gemini escreve a história de abertura de cada missão</label>
+        <button class="btn roxo peq" style="margin-top:8px">Salvar</button>
+      </form>
+      <p class="mini" style="margin-top:12px">Gemini: {% if gemini_ok %}<b style="color:#16a34a">conectado</b> ({{ modelo }}){% else %}<b style="color:#dc2626">desligado</b> — defina GEMINI_API_KEY{% endif %}</p>
+      <form method="post" action="{{ url_for('pais_reiniciar') }}" onsubmit="return confirm('Zerar o progresso de revisão?')">
+        <button class="btn peq branco">Zerar progresso de revisão</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

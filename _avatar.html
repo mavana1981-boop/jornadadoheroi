@@ -1,0 +1,6 @@
+{% macro avatar(h, grande=false) -%}
+<div class="avatar {{ 'grande' if grande }}" style="--cor:{{ h.cor }}">
+  {{ h.avatar }}
+  {% for i in h.lista_equipados() %}{% if i in LOJA_POR_ID %}<span class="equip e{{ loop.index0 }}">{{ LOJA_POR_ID[i].emoji }}</span>{% endif %}{% endfor %}
+</div>
+{%- endmacro %}

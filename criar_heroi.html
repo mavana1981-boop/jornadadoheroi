@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Crie seu herói{% endblock %}
+{% block conteudo %}
+<div class="wrap" style="max-width:640px">
+  <div class="mentor" style="margin:18px 0">
+    <div class="coruja">🦉</div>
+    <div class="balao">
+      {% if heroi %}Quer mudar o visual, {{ heroi.nome }}? Fique à vontade!{% else %}
+      Olá! Eu sou a <b>Coruja Sábia</b>. Um grande desafio se aproxima: as <b>provas</b>! 🗺️
+      Para atravessar os quatro mundos e derrotar o Monstro do Esquecimento, preciso de um herói. Será você?{% endif %}
+    </div>
+  </div>
+  <form method="post" class="card">
+    <label for="nome">Qual é o seu nome de herói?</label>
+    <input type="text" id="nome" name="nome" required maxlength="60" value="{{ heroi.nome if heroi else '' }}" placeholder="Ex.: Pedro, o Destemido">
+
+    <label>Escolha seu herói</label>
+    <div class="escolha">
+      {% for a in avatares %}
+        <input type="radio" name="avatar" id="av{{ loop.index }}" value="{{ a }}" {% if (heroi and heroi.avatar==a) or (not heroi and loop.first) %}checked{% endif %}>
+        <label for="av{{ loop.index }}">{{ a }}</label>
+      {% endfor %}
+    </div>
+
+    <label>Sua cor de poder</label>
+    <div class="escolha">
+      {% for c in cores %}
+        <input type="radio" name="cor" id="cor{{ loop.index }}" value="{{ c }}" {% if (heroi and heroi.cor==c) or (not heroi and loop.first) %}checked{% endif %}>
+        <label for="cor{{ loop.index }}" class="cor-bola" style="background:{{ c }}"></label>
+      {% endfor %}
+    </div>
+
+    <label for="interesses">Do que você mais gosta? <span class="mini">(futebol, dinossauros, Minecraft…) — as missões vão usar isso!</span></label>
+    <input type="text" id="interesses" name="interesses" maxlength="300" value="{{ heroi.interesses if heroi else '' }}" placeholder="Ex.: futebol, carros, animais">
+
+    <div style="margin-top:18px;text-align:center">
+      <button class="btn enorme">{{ 'Salvar' if heroi else 'Começar a jornada! ⚔️' }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

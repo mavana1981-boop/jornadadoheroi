@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Jornada do Herói{% endblock %}
+{% block conteudo %}
+<div class="palco" id="palco">
+  <div class="hud">
+    <a class="chip" href="{{ url_for('pais') if modo == 'previa' else url_for('inicio') }}" onclick="return confirm('Sair agora? O progresso desta rodada fica salvo só até aqui.')">✕</a>
+    <div class="progresso"><div class="barra"><i id="barra" style="width:0%"></i></div></div>
+    <span class="chip" id="placar">⭐ 0</span>
+  </div>
+  <div id="arena"></div>
+  <div id="tela"><div class="fase-banner"><div class="grande">🦉</div><h2>Preparando a aventura…</h2></div></div>
+</div>
+<div class="rodape-jogo" id="rodape" style="display:none"><button class="btn enorme" id="btn-continuar">Continuar ➜</button></div>
+<canvas class="confete" id="confete"></canvas>
+{% endblock %}
+{% block scripts %}
+<script>window.JOGO = {api: "{{ api }}", modo: "{{ modo }}"};</script>
+<script src="{{ url_for('static', filename='js/jogos.js') }}"></script>
+{% endblock %}
