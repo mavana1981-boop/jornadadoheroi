@@ -365,6 +365,80 @@ def cartas(prova_id):
                            api=url_for("api_cartas_itens", prova_id=prova.id))
 
 
+# --------------------------- Mapa da jornada --------------------------------
+def plano_jornada(hoje=None):
+    """Um ponto por dia, de quando a jornada começou até a última prova.
+
+    Segue a mesma regra das missões: na véspera de uma prova a missão vira Batalha Final;
+    no dia da prova, o castelo da prova aparece antes da missão do dia.
+    """
+    hoje = hoje or date.today()
+    provas = (Prova.query.filter(Prova.ativa.is_(True), Prova.data.isnot(None))
+              .order_by(Prova.data).all())
+    if not provas:
+        return None
+    primeira = Missao.query.order_by(Missao.data).first()
+    inicio = min(primeira.data if primeira else hoje, hoje, provas[-1].data)
+    feitas = {m.data: m for m in Missao.query.filter(Missao.data >= inicio).all()}
+    dias = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+    nos, d = [], inicio
+    while d <= provas[-1].data:
+        rotulo = {"data": d.isoformat(), "dia": d.day, "semana": dias[d.weekday()], "data_br": d.strftime("%d/%m")}
+        for p in provas:
+            if p.data == d:
+                m = p.mundo
+                nos.append({**rotulo, "tipo": "prova", "titulo": p.nome, "materia": p.materia,
+                            "mundo": m["nome"], "emoji": m["emoji"], "cor": m["cor"], "cor2": m["cor2"],
+                            "chefao": m["chefao"], "chefao_emoji": m["chefao_emoji"], "dominio": p.dominio,
+                            "status": "feita" if d < hoje else ("hoje" if d == hoje else "futura"),
+                            "url": url_for("mundo", prova_id=p.id), "conteudos": len(p.conteudos)})
+        futuras = [p for p in provas if p.data > d]
+        if futuras:
+            alvo = futuras[0]
+            m = feitas.get(d)
+            batalha = (m.tipo == "batalha_final") if m else (alvo.data - d).days <= 1
+            if m and m.status == "concluida":
+                status = "feita"
+            elif d == hoje:
+                status = "hoje"
+            else:
+                status = "perdida" if d < hoje else "futura"
+            mundo = alvo.mundo
+            nos.append({**rotulo, "tipo": "batalha" if batalha else "missao", "status": status,
+                        "estrelas": m.estrelas if m and m.status == "concluida" else 0,
+                        "acertos": m.acertos if m else 0, "total": m.total if m else 0,
+                        "alvo": alvo.nome, "alvo_data": alvo.data.strftime("%d/%m"), "faltam": (alvo.data - d).days,
+                        "cor": mundo["cor"], "cor2": mundo["cor2"], "emoji_mundo": mundo["emoji"],
+                        "chefao": mundo["chefao"], "chefao_emoji": mundo["chefao_emoji"]})
+        d += timedelta(days=1)
+    return nos
+
+
+@app.route("/jornada")
+@precisa_heroi
+def jornada():
+    heroi = Heroi.query.first()
+    nos = plano_jornada() or []
+    hoje = date.today().isoformat()
+    # onde o herói está: a missão de hoje; se a jornada acabou, no último ponto
+    pos = next((i for i, n in enumerate(nos) if n["data"] == hoje and n["tipo"] != "prova"), None)
+    if pos is None:
+        pos = next((i for i, n in enumerate(nos) if n["data"] == hoje), None)
+    if pos is None:
+        pos = len(nos) - 1 if nos and nos[-1]["data"] < hoje else 0
+    missoes_ = [n for n in nos if n["tipo"] != "prova"]
+    proxima = next((n for n in nos if n["tipo"] == "prova" and n["data"] >= hoje), None)
+    resumo = {
+        "dia": sum(1 for n in missoes_ if n["data"] <= hoje), "total": len(missoes_),
+        "feitas": sum(1 for n in missoes_ if n["status"] == "feita"),
+        "proxima": proxima,
+        "faltam": (date.fromisoformat(proxima["data"]) - date.today()).days if proxima else None,
+    }
+    equip = [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]
+    return render_template("jornada.html", heroi=heroi, nos=nos, pos=pos, resumo=resumo,
+                           andou=request.args.get("andou") == "1", equip=equip)
+
+
 @app.route("/loja")
 @precisa_heroi
 def loja():

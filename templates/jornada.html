@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block titulo %}Minha Jornada — Jornada do Herói{% endblock %}
+{% block conteudo %}
+<div class="wrap jornada-wrap">
+  <div class="topo">
+    <a class="chip" href="{{ url_for('inicio') }}">← Início</a>
+    <div class="chips">
+      <span class="chip">🔥 {{ heroi.streak }}</span>
+      <span class="chip">⭐ {{ heroi.xp }}</span>
+    </div>
+  </div>
+
+  <div class="jornada-resumo">
+    <h2>🧭 Minha Jornada</h2>
+    {% if nos %}
+      <div class="jr-linha">
+        <span class="jr-pill">📅 Dia {{ resumo.dia }} de {{ resumo.total }}</span>
+        <span class="jr-pill">⭐ {{ resumo.feitas }} {{ "missão cumprida" if resumo.feitas == 1 else "missões cumpridas" }}</span>
+      </div>
+      <div class="barra" style="margin:10px 0 4px"><i style="width:{{ (100 * resumo.feitas / (resumo.total or 1))|round }}%"></i></div>
+      {% if resumo.proxima %}
+        <p class="jr-prox">
+          {% if resumo.faltam == 0 %}⚔️ Hoje é dia de prova: <b>{{ resumo.proxima.titulo }}</b>!
+          {% elif resumo.faltam == 1 %}🔥 Amanhã é a prova de <b>{{ resumo.proxima.titulo }}</b>!
+          {% else %}🏰 Próximo castelo: <b>{{ resumo.proxima.titulo }}</b> em <b>{{ resumo.faltam }} dias</b> ({{ resumo.proxima.semana }}, {{ resumo.proxima.data_br }}){% endif %}
+        </p>
+      {% else %}
+        <p class="jr-prox">🏆 Você passou por todos os castelos! Jornada completa!</p>
+      {% endif %}
+    {% else %}
+      <p class="jr-prox">Ainda não há provas com data. Peça para um adulto marcar as datas no Painel dos Pais.</p>
+    {% endif %}
+  </div>
+
+  {% if nos %}
+  <div class="legenda">
+    <span>⭐ cumprida</span><span>💤 perdida</span><span>📜 missão</span><span>⚔️ batalha final</span><span>🏰 prova</span>
+  </div>
+  <div class="mapa-trilha" id="mapa">
+    <svg id="estrada" aria-hidden="true"></svg>
+  </div>
+  {% endif %}
+</div>
+
+<div class="folha-fundo" id="folha-fundo"></div>
+<div class="folha" id="folha"></div>
+<canvas class="confete" id="confete"></canvas>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const NOS = {{ nos|tojson }};
+  const POS = {{ pos }};
+  const ANDOU = {{ 'true' if andou else 'false' }};
+  const HEROI = {nome: {{ heroi.nome|tojson }}, avatar: {{ heroi.avatar|tojson }}, cor: {{ heroi.cor|tojson }}, equip: {{ equip|tojson }}};
+  const URL_MISSAO = "{{ url_for('missao') }}";
+  if (!NOS.length) return;
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const mapa = $("#mapa"), svg = $("#estrada");
+  const CENARIOS = {};  // decoração por mundo, a partir das provas
+  const ESPACO = {missao: 96, batalha: 104, prova: 168};
+
+  /* ---------- monta os elementos (uma vez) ---------- */
+  const regioes = [];   // um trecho colorido para cada prova
+  let ini = 0;
+  NOS.forEach((n, i) => { if (n.tipo === "prova") { regioes.push({de: ini, ate: i, prova: n}); ini = i + 1; } });
+
+  const elRegioes = regioes.map(r => {
+    const d = document.createElement("div");
+    d.className = "regiao";
+    d.style.setProperty("--c1", r.prova.cor); d.style.setProperty("--c2", r.prova.cor2);
+    d.innerHTML = `<div class="regiao-nome">Rumo ao ${esc(r.prova.emoji)} ${esc(r.prova.mundo)}</div>`;
+    mapa.appendChild(d);
+    return d;
+  });
+
+  const elNos = NOS.map((n, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.i = i;
+    if (n.tipo === "prova") {
+      b.className = `no-prova ${n.status}`;
+      b.style.setProperty("--c1", n.cor); b.style.setProperty("--c2", n.cor2);
+      b.innerHTML = `<div class="castelo"><span class="c-emoji">🏰</span><span class="c-mundo">${esc(n.emoji)}</span>${n.status === "feita" ? '<span class="c-ok">✅</span>' : ""}</div>
+        <div class="c-texto"><span class="c-tag">PROVA · ${esc(n.semana)} ${esc(n.data_br)}</span><b>${esc(n.titulo)}</b></div>`;
+    } else {
+      const icone = n.status === "feita" ? "⭐".repeat(Math.max(1, n.estrelas))
+        : n.status === "perdida" ? "💤" : n.tipo === "batalha" ? "⚔️" : "📜";
+      b.className = `no-dia ${n.tipo} ${n.status}`;
+      b.style.setProperty("--c1", n.cor);
+      b.innerHTML = `<span class="nd-bola"><span class="nd-ico ${n.status === "feita" ? "estr" : ""}">${icone}</span></span>
+        <span class="nd-data">${esc(n.semana)} ${n.dia}</span>`;
+    }
+    b.onclick = () => abrirFolha(i);
+    mapa.appendChild(b);
+    return b;
+  });
+
+  const fim = document.createElement("div");
+  fim.className = "fim-jornada";
+  fim.innerHTML = `<div style="font-size:54px">🏁🏖️</div><b>Fim da jornada: férias!</b>`;
+  mapa.appendChild(fim);
+
+  const heroi = document.createElement("div");
+  heroi.className = "heroi-mapa";
+  const atual = NOS[POS];
+  const balao = atual.status === "feita" ? "Missão de hoje cumprida! 🏆"
+    : atual.tipo === "prova" ? "Boa prova, herói! 💪" : "Você está aqui!";
+  heroi.innerHTML = `<div class="hm-balao">${esc(balao)}</div>
+    <div class="avatar" style="--cor:${esc(HEROI.cor)}">${esc(HEROI.avatar)}${HEROI.equip.map((e, k) => `<span class="equip e${k}">${esc(e)}</span>`).join("")}</div>`;
+  heroi.onclick = () => abrirFolha(POS);
+  mapa.appendChild(heroi);
+
+  // decorações espalhadas nos trechos (fixas, para não "pular" a cada visita)
+  const DECOR = ["🌳", "🌲", "🌼", "🍄", "🪨", "🌻", "⛰️", "🌵", "🏕️", "🦋", "🐦", "🌷"];
+  const elDecor = [];
+  NOS.forEach((n, i) => {
+    if (i % 2) return;
+    const d = document.createElement("span");
+    d.className = "decor";
+    d.textContent = DECOR[(i * 7 + n.dia) % DECOR.length];
+    mapa.appendChild(d);
+    elDecor.push({el: d, i});
+  });
+
+  /* ---------- posições (refaz quando a tela muda de tamanho) ---------- */
+  let P = [];
+  function layout() {
+    const W = mapa.clientWidth, cx = W / 2, A = Math.min(W * 0.28, 150);
+    let y = 96; P = [];
+    NOS.forEach((n, i) => {
+      if (i > 0) y += (ESPACO[n.tipo] + ESPACO[NOS[i - 1].tipo]) / 2 + (NOS[i - 1].tipo === "prova" ? 46 : 0);
+      const x = n.tipo === "prova" ? cx : cx + A * Math.sin(i * 0.95);
+      P.push({x, y});
+    });
+    const yFim = y + 130;
+    mapa.style.height = (yFim + 90) + "px";
+    svg.setAttribute("width", W); svg.setAttribute("height", yFim + 90);
+    svg.setAttribute("viewBox", `0 0 ${W} ${yFim + 90}`);
+
+    elNos.forEach((el, i) => { el.style.left = P[i].x + "px"; el.style.top = P[i].y + "px"; });
+    fim.style.left = cx + "px"; fim.style.top = yFim + "px";
+
+    regioes.forEach((r, k) => {
+      const topo = k === 0 ? 0 : P[regioes[k - 1].ate].y + 70;
+      const base = P[r.ate].y + 70;
+      elRegioes[k].style.top = topo + "px"; elRegioes[k].style.height = (base - topo) + "px";
+    });
+
+    elDecor.forEach(({el, i}) => {
+      const lado = P[i].x > cx ? -1 : 1;           // do lado oposto à trilha
+      el.style.left = Math.max(18, Math.min(W - 18, cx + lado * (A + 40 + (i % 3) * 14))) + "px";
+      el.style.top = (P[i].y + 20) + "px";
+    });
+
+    // estrada: curva suave passando por todos os pontos
+    const pts = P.concat([{x: cx, y: yFim}]);
+    const caminho = (a, b) => {
+      let d = `M ${pts[a].x} ${pts[a].y}`;
+      for (let i = a; i < b; i++) {
+        const p0 = pts[Math.max(i - 1, 0)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(i + 2, pts.length - 1)];
+        const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+        const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+        d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+      }
+      return d;
+    };
+    const tudo = caminho(0, pts.length - 1);
+    svg.innerHTML = `<path d="${tudo}" class="estrada-base"/><path d="${tudo}" class="estrada-meio"/>
+      ${POS > 0 ? `<path d="${caminho(0, POS)}" class="estrada-feita"/>` : ""}`;
+    posicionarHeroi(POS);
+  }
+
+  function posicionarHeroi(i) {
+    // ao lado do ponto (virado para o centro), sem cobrir os pontos vizinhos
+    const W = mapa.clientWidth, prova = NOS[i].tipo === "prova";
+    const lado = P[i].x > W / 2 ? -1 : 1;
+    const dx = prova ? 92 : 66;
+    heroi.style.left = Math.max(48, Math.min(W - 48, P[i].x + lado * dx)) + "px";
+    heroi.style.top = (P[i].y - 14) + "px";
+  }
+
+  /* ---------- detalhes ao tocar num ponto ---------- */
+  function abrirFolha(i) {
+    const n = NOS[i];
+    let h = "";
+    if (n.tipo === "prova") {
+      h = `<div class="f-topo" style="--c1:${n.cor};--c2:${n.cor2}"><span style="font-size:48px">🏰${esc(n.chefao_emoji)}</span>
+        <div><div class="f-tag">PROVA · ${esc(n.semana)}, ${esc(n.data_br)}</div><h3>${esc(n.titulo)}</h3></div></div>
+        <p>${n.status === "feita" ? "✅ Essa prova já aconteceu. Parabéns pela coragem!" :
+              n.status === "hoje" ? "⚔️ É hoje! Respire fundo e lembre de tudo o que você treinou." :
+              `Para chegar a este castelo, vença as missões do caminho. O guardião é o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b>.`}</p>
+        <p><b>${n.conteudos}</b> conteúdos · domínio do mundo: <b>${n.dominio}%</b></p>
+        <div class="hp" style="max-width:300px"><i style="width:${100 - n.dominio}%"></i></div>
+        <p class="mini">Vida do chefão: ${100 - n.dominio}%</p>
+        <a class="btn roxo" href="${n.url}">Treinar este mundo ${esc(n.emoji)}</a>`;
+    } else {
+      const titulo = n.tipo === "batalha" ? `⚔️ Batalha Final` : `📜 Missão do dia`;
+      let corpo;
+      if (n.status === "feita") corpo = `<p>Missão cumprida! ${"⭐".repeat(n.estrelas)}<br>Você acertou <b>${n.acertos}</b> de <b>${n.total}</b> de primeira.</p>`;
+      else if (n.status === "perdida") corpo = `<p>💤 Esse dia ficou sem missão. Tudo bem: o que faltou volta nas próximas missões.</p>`;
+      else if (n.status === "hoje") corpo = `<p>${n.tipo === "batalha" ? `Amanhã é a prova de <b>${esc(n.alvo)}</b>! Hoje você enfrenta o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b> só com perguntas dessa prova.` : `Sua missão de hoje está pronta: leia as páginas no Aquecimento e vença o desafio!`}</p>
+        <a class="btn verde enorme" href="${URL_MISSAO}">▶ Jogar agora</a>`;
+      else corpo = `<p>${n.tipo === "batalha" ? `Véspera da prova de <b>${esc(n.alvo)}</b>: batalha contra o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b>.` : `Revisão rumo à prova de <b>${esc(n.alvo)}</b> (faltarão ${n.faltam} dias).`}</p>
+        <p class="mini">Os desafios desse dia são escolhidos na hora, de acordo com o que você mais precisa treinar.</p>`;
+      h = `<div class="f-topo" style="--c1:${n.cor};--c2:${n.cor}"><span style="font-size:44px">${n.status === "feita" ? "🏆" : n.status === "perdida" ? "💤" : n.tipo === "batalha" ? esc(n.chefao_emoji) : "🗺️"}</span>
+        <div><div class="f-tag">${esc(n.semana)}, ${esc(n.data_br)}${i === POS ? " · HOJE" : ""}</div><h3>${titulo}</h3></div></div>${corpo}`;
+    }
+    $("#folha").innerHTML = `<button class="f-x" aria-label="Fechar">✕</button>${h}`;
+    $("#folha").classList.add("aberta"); $("#folha-fundo").classList.add("aberta");
+    $("#folha .f-x").onclick = fecharFolha;
+  }
+  function fecharFolha() { $("#folha").classList.remove("aberta"); $("#folha-fundo").classList.remove("aberta"); }
+  $("#folha-fundo").onclick = fecharFolha;
+
+  /* ---------- início ---------- */
+  layout();
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(layout, 120); });
+  const rolarAte = i => window.scrollTo({top: mapa.getBoundingClientRect().top + scrollY + P[i].y - innerHeight / 2, behavior: "smooth"});
+
+  if (ANDOU && POS > 0) {
+    // o herói sai do ponto anterior e caminha até o de hoje
+    const de = Math.max(0, POS - 1);
+    heroi.classList.add("sem-transicao"); posicionarHeroi(de); void heroi.offsetWidth; heroi.classList.remove("sem-transicao");
+    rolarAte(de);
+    setTimeout(() => { heroi.classList.add("andando"); posicionarHeroi(POS); }, 900);
+    setTimeout(() => { heroi.classList.remove("andando"); confete(); }, 2400);
+  } else {
+    setTimeout(() => rolarAte(POS), 250);
+  }
+
+  function confete() {
+    const cv = $("#confete"), cx = cv.getContext("2d");
+    cv.width = innerWidth; cv.height = innerHeight;
+    const ps = Array.from({length: 120}, () => ({x: Math.random() * cv.width, y: -20 - Math.random() * cv.height / 2,
+      vy: 2 + Math.random() * 4, vx: -2 + Math.random() * 4, c: `hsl(${Math.random() * 360},90%,60%)`, s: 6 + Math.random() * 6}));
+    const t0 = performance.now();
+    (function q(t) {
+      cx.clearRect(0, 0, cv.width, cv.height);
+      ps.forEach(p => { p.x += p.vx; p.y += p.vy; cx.fillStyle = p.c; cx.fillRect(p.x, p.y, p.s, p.s * .6); });
+      if (t - t0 < 2200) requestAnimationFrame(q); else cx.clearRect(0, 0, cv.width, cv.height);
+    })(t0);
+  }
+})();
+</script>
+{% endblock %}
