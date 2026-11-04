@@ -130,6 +130,39 @@ Responda APENAS com JSON: {{"titulo": str, "emoji": str, "resumo": str, "ativida
     }
 
 
+def resumo_para_crianca(materia, titulo, resumo, heroi=None):
+    """Resumo curtinho e visual de um conteúdo, para ler antes do desafio."""
+    prompt = f"""Você escreve o "Resumo do Herói": o que uma criança de 8 anos (3º ano) precisa lembrar
+deste conteúdo antes de fazer as atividades de revisão para a prova.
+Matéria: {materia}
+Conteúdo: {titulo}
+Material de base (fiel ao livro; não invente nada fora dele):
+{resumo}
+
+Regras:
+- De 4 a 6 tópicos. Cada tópico com UM emoji que ajude a lembrar e uma frase curta (no máximo 22 palavras).
+- Linguagem simples, de criança, no português do Brasil. Explique palavras difíceis.
+- Marque com **asteriscos duplos** as 1 ou 2 palavras-chave de cada tópico (as que podem cair na prova).
+- Inclua números, datas e definições importantes que estão no material.
+- "lembre": uma frase final curtinha e marcante para guardar (pode ser uma dica de memória).
+{_personalizacao(heroi)}
+Responda APENAS com JSON: {{"topicos": [{{"emoji": "🌱", "texto": "..."}}], "lembre": "..."}}"""
+    saida = _chamar([{"text": prompt}], temperatura=0.5, timeout=60)
+    return validar_resumo(saida)
+
+
+def validar_resumo(d):
+    if not isinstance(d, dict):
+        return None
+    topicos = []
+    for t in d.get("topicos", []):
+        if isinstance(t, dict) and _s(t.get("texto")):
+            topicos.append({"emoji": _s(t.get("emoji"), 12) or "⭐", "texto": _s(t["texto"], 240)})
+    if len(topicos) < 2:
+        return None
+    return {"topicos": topicos[:7], "lembre": _s(d.get("lembre"), 200)}
+
+
 def historia_da_missao(heroi, mundos, conteudos, tipo="diaria", dias_prova=None):
     prompt = f"""Escreva a abertura da missão de hoje de um jogo educativo (jornada do herói) para uma criança de 8 anos.
 Herói: {heroi.nome}. Interesses: {heroi.interesses or 'aventura'}.

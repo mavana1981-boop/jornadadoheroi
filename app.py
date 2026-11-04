@@ -13,6 +13,7 @@ from flask import (Flask, abort, flash, jsonify, redirect, render_template, requ
 import gemini
 import imagens
 import missoes
+import resumos
 from conteudo_inicial import PROVAS
 from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, PaginaFoto, Prova,
                     Resposta, db, mundo_de)
@@ -157,6 +158,7 @@ with app.app_context():
     elif Config.get("conteudo_versao") != VERSAO_CONTEUDO:
         sincronizar_conteudo()
     imagens.registrar_todas()  # cadastra as ilustrações que faltam (não gera nada sozinho)
+    resumos.gerar_em_segundo_plano(app)  # Resumo do Herói de cada conteúdo (texto, custo mínimo)
 
 # ---------------------------------------------------------------------------
 # Páginas do livro (fotos) — para o "Aquecimento do Herói"
@@ -217,13 +219,15 @@ def paginas_de(conteudo, cache=None):
 
 
 def leitura_de(conteudos):
-    """Lista para a tela de leitura: um bloco por conteúdo que tem fotos."""
+    """Aquecimento: um bloco por conteúdo, com o Resumo do Herói e (se houver) as fotos das páginas."""
     cache, out = {}, []
+    resumos.gerar_em_segundo_plano(app, conteudos)  # os que faltam ficam prontos para a próxima vez
     for c in conteudos:
         p = paginas_de(c, cache)
-        if p["fotos"]:
+        r = resumos.obter(c)
+        if p["fotos"] or r["topicos"]:
             out.append({"id": c.id, "titulo": c.titulo, "emoji": c.emoji, "materia": c.prova.materia,
-                        "paginas": c.paginas, "fotos": p["fotos"], "mundo": c.prova.mundo})
+                        "paginas": c.paginas, "fotos": p["fotos"], "mundo": c.prova.mundo, "resumo": r})
     return out
 
 
@@ -784,7 +788,8 @@ def pais_conteudo(conteudo_id):
     livro = livro_de(c.prova.materia)
     enviadas = _fotos_enviadas(livro)
     return render_template("pais/conteudo.html", c=c, gemini_ok=gemini.disponivel(),
-                           exemplos=EXEMPLOS_JSON, pags=paginas_de(c), livro=livro, enviadas=enviadas)
+                           exemplos=EXEMPLOS_JSON, pags=paginas_de(c), livro=livro, enviadas=enviadas,
+                           resumo_heroi=resumos.obter(c))
 
 
 @app.post("/pais/conteudo/novo")
@@ -848,6 +853,20 @@ def pais_gerar(conteudo_id):
     except gemini.GeminiErro as e:
         flash(str(e))
     return redirect(url_for("pais_conteudo", conteudo_id=c.id))
+
+
+@app.post("/pais/conteudo/<int:conteudo_id>/resumo-heroi")
+@precisa_pais
+def pais_resumo_heroi(conteudo_id):
+    c = db.get_or_404(Conteudo, conteudo_id)
+    try:
+        if resumos.gerar(c):
+            flash("Resumo do Herói reescrito pelo Gemini.")
+        else:
+            flash("O Gemini não devolveu um resumo válido. Tente de novo.")
+    except gemini.GeminiErro as e:
+        flash(str(e))
+    return redirect(url_for("pais_conteudo", conteudo_id=c.id) + "#resumo-heroi")
 
 
 @app.post("/pais/conteudo/<int:conteudo_id>/paginas")

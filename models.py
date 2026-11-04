@@ -237,6 +237,15 @@ class Imagem(db.Model):
     criada_em = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class ResumoHeroi(db.Model):
+    """Resumo do conteúdo escrito para a criança (lido no Aquecimento, antes das páginas do livro)."""
+    id = db.Column(db.Integer, primary_key=True)
+    conteudo_id = db.Column(db.Integer, db.ForeignKey("conteudo.id", ondelete="CASCADE"), unique=True, nullable=False)
+    dados = db.Column(db.Text, nullable=False)        # {"topicos": [{"emoji", "texto"}], "lembre": str}
+    base = db.Column(db.String(20), default="")       # assinatura do título+resumo usados (refaz se mudar)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Config(db.Model):
     chave = db.Column(db.String(60), primary_key=True)
     valor = db.Column(db.String(500))

@@ -292,25 +292,45 @@
     mostrar();
   }
 
+  const negrito = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  const semMarcas = t => String(t || "").replace(/\*\*/g, "");
+
   function leitura() {
     const blocos = D.leitura || [];
     if (!blocos.length || MODO === "cartas") return proximo();
     window.scrollTo({ top: 0 });
-    const lidos = new Set();
-    const total = blocos.reduce((s, b) => s + b.fotos.length, 0);
     const txt = blocos.length === 1
-      ? `Antes do desafio, leia ${total === 1 ? "a página" : "as " + total + " páginas"} do livro. Toque numa página para abrir!`
-      : `Antes do desafio, dê uma olhada nas páginas do livro de cada assunto da missão. Toque numa página para abrir!`;
+      ? "Antes do desafio, leia o Resumo do Herói. Se quiser, abra as páginas do livro!"
+      : `Antes do desafio, leia o Resumo do Herói de cada um dos ${blocos.length} assuntos. As páginas do livro ficam guardadas no botão 📖.`;
     tela.innerHTML = `<div class="fase-banner" style="padding-bottom:10px"><div class="grande">📖</div><h2>Aquecimento do Herói</h2></div>
       <div class="mentor" style="margin-bottom:14px"><div class="coruja">🦉</div><div class="balao">${esc(txt)}</div></div>
-      ${blocos.map((b, bi) => `<div class="leitura-bloco" data-b="${bi}" style="--c1:${b.mundo.cor};--c2:${b.mundo.cor2}">
-        <div class="lb-topo"><span class="lb-emoji">${esc(b.emoji)}</span><div><b>${esc(b.titulo)}</b><div class="mini">${esc(b.materia)} · pág. ${esc(b.paginas)}</div></div><span class="lb-ok" id="ok${bi}"></span></div>
-        <div class="lb-tira">${b.fotos.map((f, fi) => `<button class="lb-pag" data-b="${bi}" data-f="${fi}"><img src="${f.url}" alt="Página ${f.n}" loading="lazy"><span>pág. ${f.n}</span></button>`).join("")}</div>
-      </div>`).join("")}`;
+      ${blocos.map((b, bi) => {
+        const r = b.resumo || { topicos: [] };
+        return `<div class="leitura-bloco" data-b="${bi}" style="--c1:${b.mundo.cor};--c2:${b.mundo.cor2}">
+        <div class="lb-topo"><span class="lb-emoji">${esc(b.emoji)}</span><div><b>${esc(b.titulo)}</b><div class="mini">${esc(b.materia)}${b.paginas ? " · pág. " + esc(b.paginas) : ""}</div></div><span class="lb-ok" id="ok${bi}"></span></div>
+        ${r.topicos.length ? `<div class="resumo-heroi">
+          <div class="rh-topo"><b>⚡ Resumo do Herói</b><button class="rh-ouvir" data-b="${bi}">🔊 Ouvir</button></div>
+          <ul>${r.topicos.map(t => `<li><span class="rh-emoji">${esc(t.emoji)}</span><span>${negrito(t.texto)}</span></li>`).join("")}</ul>
+          ${r.lembre ? `<div class="rh-lembre">💡 <b>Lembre:</b> ${negrito(r.lembre)}</div>` : ""}
+        </div>` : ""}
+        ${b.fotos.length ? `<button class="lb-livro" data-b="${bi}">📖 Ver no livro (${b.fotos.length} ${b.fotos.length === 1 ? "página" : "páginas"})</button>
+          <div class="lb-tira" id="tira${bi}" hidden>${b.fotos.map((f, fi) => `<button class="lb-pag" data-b="${bi}" data-f="${fi}"><img src="${f.url}" alt="Página ${f.n}" loading="lazy"><span>pág. ${f.n}</span></button>`).join("")}</div>` : ""}
+      </div>`;
+      }).join("")}`;
+    const marcar = bi => { $("#ok" + bi).textContent = "✅"; };
+    tela.querySelectorAll(".rh-ouvir").forEach(el => el.onclick = () => {
+      const b = blocos[+el.dataset.b], r = b.resumo;
+      som("clique"); marcar(+el.dataset.b);
+      falar(`${b.titulo}. ` + r.topicos.map(t => semMarcas(t.texto)).join(" ") + (r.lembre ? " Lembre: " + semMarcas(r.lembre) : ""));
+    });
+    tela.querySelectorAll(".lb-livro").forEach(el => el.onclick = () => {
+      const t = $("#tira" + el.dataset.b);
+      t.hidden = !t.hidden; som("clique");
+      el.textContent = t.hidden ? el.textContent.replace("Esconder", "Ver no livro").replace("🙈", "📖") : el.textContent.replace("Ver no livro", "Esconder").replace("📖", "🙈");
+    });
     tela.querySelectorAll(".lb-pag").forEach(el => el.onclick = () => {
       const b = +el.dataset.b, f = +el.dataset.f;
-      som("clique"); lidos.add(b);
-      $("#ok" + b).textContent = "✅";
+      som("clique"); marcar(b);
       abrirLivro(blocos[b].fotos, f, blocos[b].titulo);
     });
     falar("Aquecimento do herói! " + txt);

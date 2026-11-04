@@ -381,3 +381,19 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .f-assuntos{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}
 .f-assuntos li{display:flex;gap:8px;align-items:center;background:#f6f4ff;border-radius:12px;padding:6px 10px;font-size:15px}
 .f-assuntos li small{display:block;color:var(--muted);font-weight:700;font-size:12px}
+
+/* ---------- Resumo do Herói (Aquecimento) ---------- */
+.resumo-heroi{background:linear-gradient(135deg,#fff7d6,#fff);border:3px solid #ffd166;border-radius:16px;padding:10px 12px;color:var(--ink)}
+.rh-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.rh-topo b{font-family:'Baloo 2';font-size:18px;color:#b45309}
+.rh-ouvir{border:0;background:#ffd166;border-radius:999px;padding:4px 12px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink)}
+.resumo-heroi ul{list-style:none;padding:0;margin:0;display:grid;gap:7px}
+.resumo-heroi li{display:flex;gap:8px;align-items:flex-start;font-size:17px;line-height:1.35}
+.resumo-heroi li b{background:#fde68a;border-radius:6px;padding:0 3px}
+.rh-emoji{font-size:22px;flex:none;line-height:1.2}
+.rh-lembre{margin-top:8px;background:#ede9fe;border-radius:12px;padding:8px 10px;font-size:16px}
+.lb-livro{margin-top:10px;width:100%;border:2px dashed #c4b5fd;background:#faf9ff;color:var(--roxo);border-radius:14px;padding:8px;font-weight:800;font-size:15px;cursor:pointer}
+.lb-tira[hidden]{display:none}
+.leitura-bloco .lb-tira{margin-top:10px}
+.resumo-pais{list-style:none;padding:0;display:grid;gap:6px}
+.resumo-pais li{background:#fff7d6;border-radius:10px;padding:6px 10px}

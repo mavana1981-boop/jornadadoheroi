@@ -22,6 +22,22 @@
   </div>
 
 
+
+  <div class="card" id="resumo-heroi" style="margin-bottom:16px">
+    <h2>⚡ Resumo do Herói <span class="mini">— o que a criança lê no Aquecimento, antes das páginas do livro</span></h2>
+    {% if resumo_heroi.automatico %}
+      <div class="aviso">{% if gemini_ok %}O Gemini ainda vai escrever este resumo (em segundo plano). Por enquanto aparece a versão automática abaixo, feita com as frases do resumo do conteúdo.{% else %}Versão automática (sem o Gemini), feita com as frases do resumo do conteúdo.{% endif %}</div>
+    {% endif %}
+    <ul class="resumo-pais">
+      {% for t in resumo_heroi.topicos %}<li><span>{{ t.emoji }}</span> {{ t.texto|replace('**', '') }}</li>{% endfor %}
+    </ul>
+    {% if resumo_heroi.lembre %}<p><b>💡 Lembre:</b> {{ resumo_heroi.lembre|replace('**', '') }}</p>{% endif %}
+    <p class="mini">Ele é refeito sozinho quando você muda o título ou o resumo do conteúdo acima.</p>
+    <form method="post" action="{{ url_for('pais_resumo_heroi', conteudo_id=c.id) }}">
+      <button class="btn roxo peq" {{ 'disabled' if not gemini_ok }}>✨ Escrever de novo com o Gemini</button>
+    </form>
+  </div>
+
   <div class="card" id="paginas" style="margin-bottom:16px">
     <h2>📖 Páginas do livro <span class="mini">— aparecem no Aquecimento do Herói, antes do desafio</span></h2>
     {% if pags.fotos %}
