@@ -637,6 +637,28 @@ def api_loja(item_id):
 
 
 # --------------------------- Ilustrações ------------------------------------
+# --------------------------- App instalável (PWA) ----------------------------
+@app.get("/manifest.webmanifest")
+def manifesto():
+    r = send_file(os.path.join(app.root_path, "static", "manifest.webmanifest"), mimetype="application/manifest+json")
+    r.headers["Cache-Control"] = "public, max-age=3600"
+    return r
+
+
+@app.get("/sw.js")
+def service_worker():
+    # servido na raiz para valer para o app inteiro; sem cache para as atualizações chegarem logo
+    r = send_file(os.path.join(app.root_path, "static", "sw.js"), mimetype="application/javascript")
+    r.headers["Cache-Control"] = "no-cache"
+    r.headers["Service-Worker-Allowed"] = "/"
+    return r
+
+
+@app.get("/offline")
+def offline():
+    return render_template("offline.html")
+
+
 @app.get("/ilustracao/<chave>.jpg")
 def ilustracao(chave):
     from models import Imagem

@@ -8,6 +8,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <meta name="theme-color" content="#1b1446">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icones/favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icones/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jornada">
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% if not self.body_class() %}<div class="estrelas-bg"></div>{% endif %}
@@ -18,5 +25,37 @@
     {% block conteudo %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}
+  <div class="instalar-folha" id="instalar-folha" hidden>
+    <div class="if-caixa">
+      <button class="if-x" aria-label="Fechar" onclick="document.getElementById('instalar-folha').hidden=true">✕</button>
+      <img src="{{ url_for('static', filename='icones/icone-192.png') }}" alt="" width="72" height="72">
+      <h3>Instalar a Jornada do Herói</h3>
+      <div id="instalar-texto"></div>
+    </div>
+  </div>
+  <script>
+  (() => {
+    if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    const instalado = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    let pedido = null;
+    const botoes = () => document.querySelectorAll("[data-instalar]");
+    const mostrar = () => botoes().forEach(b => b.hidden = false);
+    addEventListener("beforeinstallprompt", e => { e.preventDefault(); pedido = e; mostrar(); });
+    addEventListener("appinstalled", () => botoes().forEach(b => b.hidden = true));
+    addEventListener("DOMContentLoaded", () => {
+      if (instalado) return;
+      if (ios) mostrar();
+      botoes().forEach(b => b.onclick = async () => {
+        if (pedido) { pedido.prompt(); await pedido.userChoice; pedido = null; botoes().forEach(x => x.hidden = true); return; }
+        const t = document.getElementById("instalar-texto");
+        t.innerHTML = ios
+          ? `<ol><li>Toque no botão <b>Compartilhar</b> <span class="if-ico">⬆️</span> na barra do Safari.</li><li>Role e toque em <b>Adicionar à Tela de Início</b> <span class="if-ico">➕</span>.</li><li>Toque em <b>Adicionar</b>. Pronto: o ícone do castelo aparece na tela do celular!</li></ol><p class="mini">No iPhone, abra este site pelo Safari para conseguir instalar.</p>`
+          : `<ol><li>Abra o menu do navegador <span class="if-ico">⋮</span> (no canto de cima).</li><li>Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme. O ícone do castelo aparece junto com os outros apps.</li></ol>`;
+        document.getElementById("instalar-folha").hidden = false;
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

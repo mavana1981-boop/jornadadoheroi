@@ -397,3 +397,17 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .leitura-bloco .lb-tira{margin-top:10px}
 .resumo-pais{list-style:none;padding:0;display:grid;gap:6px}
 .resumo-pais li{background:#fff7d6;border-radius:10px;padding:6px 10px}
+
+/* ---------- instalar no celular ---------- */
+.chip-instalar{background:#ffbe0b;color:var(--ink);border-color:#fff;cursor:pointer;font-family:inherit}
+.chip-instalar[hidden]{display:none}
+.instalar-folha{position:fixed;inset:0;background:#000a;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.instalar-folha[hidden]{display:none}
+.if-caixa{position:relative;background:#fff;color:var(--ink);width:min(520px,100%);border-radius:26px 26px 0 0;padding:22px 20px 30px;text-align:center}
+.if-caixa img{border-radius:18px}
+.if-caixa h3{font-size:22px;margin:8px 0}
+.if-caixa ol{text-align:left;font-size:17px;line-height:1.5;padding-left:22px}
+.if-ico{display:inline-block;background:#f1edff;border-radius:8px;padding:0 6px}
+.if-x{position:absolute;right:14px;top:12px;border:0;background:#f1edff;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer}
+/* tela cheia no iPhone: respeita o entalhe */
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
