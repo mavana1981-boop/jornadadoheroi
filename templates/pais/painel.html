@@ -111,7 +111,7 @@
         <button class="btn roxo peq" style="margin-top:8px">Salvar</button>
       </form>
       <p class="mini" style="margin-top:12px">Gemini: {% if gemini_ok %}<b style="color:#16a34a">conectado</b> ({{ modelo }}){% else %}<b style="color:#dc2626">desligado</b> — defina GEMINI_API_KEY{% endif %}</p>
-      <form method="post" action="{{ url_for('pais_resetar_tudo') }}" onsubmit="return confirm('Resetar TUDO? Missões, estrelas, XP, moedas, sequência de dias e itens da loja serão apagados. O herói, as provas e os conteúdos continuam.')">
+      <form method="post" action="{{ url_for('pais_resetar_tudo') }}" onsubmit="return confirm('Resetar TUDO? O herói, as missões, estrelas, XP, moedas, sequência de dias e itens da loja serão apagados. As provas e os conteúdos continuam.')">
         <button class="btn peq" style="background:#ef4444;color:#fff;box-shadow:0 4px 0 #991b1b">🔄 Resetar tudo (começar do zero)</button>
       </form>
     </div>

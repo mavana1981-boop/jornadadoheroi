@@ -597,21 +597,19 @@ def api_previa(aid):
 @app.post("/pais/resetar-tudo")
 @precisa_pais
 def pais_resetar_tudo():
-    """Começa a jornada do zero: apaga missões, respostas, domínio, XP, moedas, sequência e itens.
-    Mantém o herói (nome, avatar, interesses), as provas, os conteúdos e as atividades."""
+    """Começa a jornada do zero: apaga o herói, missões, respostas, domínio, XP, moedas e itens.
+    Mantém as provas, os conteúdos e as atividades."""
     Resposta.query.delete()
     Missao.query.delete()
+    Heroi.query.delete()
     for c in Conteudo.query.all():
         c.caixa, c.proxima_revisao, c.ultima_revisao, c.acertos, c.erros = 0, None, None, 0, 0
     for a in Atividade.query.all():
         a.vezes, a.acertos, a.ultima_vez = 0, 0, None
-    heroi = Heroi.query.first()
-    if heroi:
-        heroi.xp, heroi.moedas, heroi.streak, heroi.ultimo_dia = 0, 0, 0, None
-        heroi.itens, heroi.equipados = "[]", "[]"
     db.session.commit()
-    flash("Jornada resetada: tudo começa do zero. A missão de hoje será montada de novo.")
-    return redirect(url_for("pais"))
+    session.pop("pais", None)
+    flash("Jornada resetada. Crie um novo herói para começar do zero!")
+    return redirect(url_for("criar_heroi"))
 
 
 EXEMPLOS_JSON = {
