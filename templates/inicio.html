@@ -41,14 +41,21 @@
 
 
   {# ---------------- Mapa da jornada ---------------- #}
-  {% set prox = provas|selectattr('dias_restantes', 'ne', none)|selectattr('dias_restantes', 'ge', 0)|first %}
-  <a class="home-jornada" href="{{ url_for('jornada') }}">
-    <span class="hj-ico">🧭</span>
-    <span><b>Minha Jornada</b>
-      {% if prox %}{% if prox.dias_restantes == 0 %}Hoje é dia de prova: {{ prox.nome }}!{% elif prox.dias_restantes == 1 %}Amanhã: castelo de {{ prox.nome }}!{% else %}Faltam {{ prox.dias_restantes }} dias até o castelo de {{ prox.nome }}{% endif %}
-      {% else %}Veja o caminho que você percorreu{% endif %}</span>
-    <span class="hj-ir">➜</span>
-  </a>
+  {% if nos %}
+  <div class="home-mapa-topo">
+    <h2>🧭 Minha Jornada</h2>
+    <a class="chip" href="{{ url_for('jornada') }}">⤢ Tela cheia</a>
+  </div>
+  <p class="home-mapa-sub">
+    📅 Dia {{ resumo.dia }} de {{ resumo.total }} ·
+    {% if resumo.proxima %}{% if resumo.faltam == 0 %}⚔️ hoje é dia de prova: <b>{{ resumo.proxima.titulo }}</b>!
+    {% elif resumo.faltam == 1 %}🔥 amanhã: castelo de <b>{{ resumo.proxima.titulo }}</b>!
+    {% else %}🏰 faltam <b>{{ resumo.faltam }} dias</b> até o castelo de <b>{{ resumo.proxima.titulo }}</b>{% endif %}
+    {% else %}🏆 jornada completa!{% endif %}
+  </p>
+  {% set compacto = true %}
+  {% include "_mapa_jornada.html" %}
+  {% endif %}
 
   {# ---------------- Mundos ---------------- #}
   <h2 style="color:#fff;font-size:30px;margin:26px 0 12px">🗺️ Mapa dos Mundos</h2>

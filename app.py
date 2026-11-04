@@ -328,7 +328,7 @@ def inicio():
     missao = Missao.query.filter_by(data=hoje).first()
     tem_futuras = bool(missoes.provas_futuras(hoje))
     return render_template("inicio.html", heroi=heroi, provas=provas, missao=missao,
-                           tem_futuras=tem_futuras, conquistas=conquistas_de(heroi))
+                           tem_futuras=tem_futuras, conquistas=conquistas_de(heroi), **contexto_jornada())
 
 
 @app.route("/mundo/<int:prova_id>")
@@ -414,9 +414,8 @@ def plano_jornada(hoje=None):
     return nos
 
 
-@app.route("/jornada")
-@precisa_heroi
-def jornada():
+def contexto_jornada():
+    """Dados do mapa da jornada para os templates (tela inicial e /jornada)."""
     heroi = Heroi.query.first()
     nos = plano_jornada() or []
     hoje = date.today().isoformat()
@@ -435,9 +434,14 @@ def jornada():
         "faltam": (date.fromisoformat(proxima["data"]) - date.today()).days if proxima else None,
     }
     equip = [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]
-    return render_template("jornada.html", heroi=heroi, nos=nos, pos=pos, resumo=resumo,
-                           andou=request.args.get("andou") == "1", equip=equip)
+    return {"nos": nos, "pos": pos, "resumo": resumo, "equip": equip,
+            "andou": request.args.get("andou") == "1"}
 
+
+@app.route("/jornada")
+@precisa_heroi
+def jornada():
+    return render_template("jornada.html", heroi=Heroi.query.first(), **contexto_jornada())
 
 @app.route("/loja")
 @precisa_heroi

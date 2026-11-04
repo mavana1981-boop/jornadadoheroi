@@ -411,8 +411,8 @@
       ${(j.conquistas || []).map(c => `<div class="premio" style="background:#ffbe0b33">${c.emoji} Nova conquista: ${esc(c.nome)}</div>`).join("")}
     </div>`;
     falar(msg);
-    mostrarContinuar(MODO === "missao" ? "Ver minha jornada 🧭" : "Voltar ao mapa 🗺️",
-      () => location.href = MODO === "missao" ? "/jornada?andou=1" : "/");
+    mostrarContinuar(MODO === "missao" ? "Ver o herói andar no mapa 🧭" : "Voltar ao mapa 🗺️",
+      () => location.href = MODO === "missao" ? "/?andou=1" : "/");
   }
 
   /* ------------------------------ início ------------------------------ */
