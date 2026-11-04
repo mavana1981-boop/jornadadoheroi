@@ -57,7 +57,7 @@
       <tr>
         <td><a href="{{ url_for('pais_conteudo', conteudo_id=c.id) }}"><b>{{ c.emoji }} {{ c.titulo }}</b></a><div class="mini">pág. {{ c.paginas or '—' }}</div></td>
         <td>{{ c.atividades_ativas()|length }}</td>
-        <td>{% for i in range(5) %}{{ '★' if i < c.caixa else '☆' }}{% endfor %}</td>
+        <td>{% for i in range(5) %}{{ '★' if i < c.estrelas else '☆' }}{% endfor %} <span class="mini">{{ c.dominio }}%</span></td>
         <td><span class="pill {{ 'novo' if linha.status == 'novo' else ('hoje' if linha.status == 'para hoje' else 'ok') }}">{{ linha.status }}</span></td>
         <td>{% set t = c.acertos + c.erros %}{{ ((100 * c.acertos / t)|round|int ~ '%') if t else '—' }}</td>
       </tr>
@@ -111,8 +111,8 @@
         <button class="btn roxo peq" style="margin-top:8px">Salvar</button>
       </form>
       <p class="mini" style="margin-top:12px">Gemini: {% if gemini_ok %}<b style="color:#16a34a">conectado</b> ({{ modelo }}){% else %}<b style="color:#dc2626">desligado</b> — defina GEMINI_API_KEY{% endif %}</p>
-      <form method="post" action="{{ url_for('pais_reiniciar') }}" onsubmit="return confirm('Zerar o progresso de revisão?')">
-        <button class="btn peq branco">Zerar progresso de revisão</button>
+      <form method="post" action="{{ url_for('pais_resetar_tudo') }}" onsubmit="return confirm('Resetar TUDO? Missões, estrelas, XP, moedas, sequência de dias e itens da loja serão apagados. O herói, as provas e os conteúdos continuam.')">
+        <button class="btn peq" style="background:#ef4444;color:#fff;box-shadow:0 4px 0 #991b1b">🔄 Resetar tudo (começar do zero)</button>
       </form>
     </div>
   </div>

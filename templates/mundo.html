@@ -18,10 +18,10 @@
   <div class="trilha">
     {% for c in prova.conteudos %}
       <a class="no" href="{{ url_for('treino', conteudo_id=c.id) }}">
-        <div class="bola d{{ c.caixa }}">{{ c.emoji }}</div>
+        <div class="bola d{{ c.estrelas }}">{{ c.emoji }}</div>
         <div class="info">
           <div style="font-family:'Baloo 2';font-size:20px;font-weight:800">{{ c.titulo }}</div>
-          <div class="estrelinhas">{% for i in range(5) %}{{ '⭐' if i < c.caixa else '☆' }}{% endfor %}</div>
+          <div class="estrelinhas">{% for i in range(5) %}{{ '⭐' if i < c.estrelas else '☆' }}{% endfor %} <span class="mini" style="color:#fff">{{ c.dominio }}%</span></div>
           <div class="mini" style="color:#fff;opacity:.8">{{ c.atividades_ativas()|length }} desafios{% if c.paginas %} · pág. {{ c.paginas }}{% endif %}</div>
         </div>
       </a>

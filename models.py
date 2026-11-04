@@ -129,7 +129,19 @@ class Conteudo(db.Model):
 
     @property
     def dominio(self):
-        return self.caixa * 20
+        """0-100: média do aproveitamento de cada atividade ativa (acertos ÷ tentativas).
+        Atividade nunca jogada conta 0, então o domínio cresce com acertos e com cobertura."""
+        ativas = self.atividades_ativas()
+        if not ativas:
+            return 0
+        soma = sum(a.acertos / a.vezes for a in ativas if a.vezes)
+        return round(100 * soma / len(ativas))
+
+    @property
+    def estrelas(self):
+        """0 a 5 estrelas a partir do domínio (cada estrela = 20%)."""
+        d = self.dominio
+        return 0 if d == 0 else max(1, min(5, round(d / 20)))
 
     def atividades_ativas(self):
         return [a for a in self.atividades if a.ativa]

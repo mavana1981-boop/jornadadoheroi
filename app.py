@@ -122,7 +122,7 @@ def estatisticas(heroi):
         "missoes": len(concl),
         "acertos": Resposta.query.filter_by(acertou=True).count(),
         "perfeitas": sum(1 for m in concl if m.total and m.acertos == m.total),
-        "dominados": Conteudo.query.filter(Conteudo.caixa >= 5).count(),
+        "dominados": sum(1 for c in Conteudo.query.all() if c.estrelas >= 5),
     }
 
 
@@ -594,17 +594,23 @@ def api_previa(aid):
                     "chefe": {"nome": "Chefão", "emoji": "👾"}, "itens": _pacote([a])})
 
 
-@app.post("/pais/reiniciar-progresso")
+@app.post("/pais/resetar-tudo")
 @precisa_pais
-def pais_reiniciar():
+def pais_resetar_tudo():
+    """Começa a jornada do zero: apaga missões, respostas, domínio, XP, moedas, sequência e itens.
+    Mantém o herói (nome, avatar, interesses), as provas, os conteúdos e as atividades."""
     Resposta.query.delete()
     Missao.query.delete()
     for c in Conteudo.query.all():
         c.caixa, c.proxima_revisao, c.ultima_revisao, c.acertos, c.erros = 0, None, None, 0, 0
     for a in Atividade.query.all():
         a.vezes, a.acertos, a.ultima_vez = 0, 0, None
+    heroi = Heroi.query.first()
+    if heroi:
+        heroi.xp, heroi.moedas, heroi.streak, heroi.ultimo_dia = 0, 0, 0, None
+        heroi.itens, heroi.equipados = "[]", "[]"
     db.session.commit()
-    flash("Progresso de revisão reiniciado (XP, moedas e itens do herói foram mantidos).")
+    flash("Jornada resetada: tudo começa do zero. A missão de hoje será montada de novo.")
     return redirect(url_for("pais"))
 
 
