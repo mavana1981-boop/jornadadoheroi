@@ -374,7 +374,7 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .as-txt{display:flex;flex-direction:column;line-height:1.2}
 .as-txt b{font-size:15px}
 .as-txt small{font-size:12px;color:var(--muted);font-weight:700}
-.desafio .assunto-item{font-size:13px;font-weight:800;color:var(--muted);margin-top:6px;padding-right:50px}
+.desafio .assunto-item{font-size:13px;font-weight:800;color:var(--muted);margin-top:6px}
 .home-assuntos{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;max-width:72%}
 .home-assuntos span{background:#ffffff2e;border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px}
 .nd-mundos{font-size:13px;line-height:1;background:#fff;border-radius:999px;padding:2px 5px;box-shadow:0 2px 0 #0003;margin-top:1px}
@@ -411,3 +411,17 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .if-x{position:absolute;right:14px;top:12px;border:0;background:#f1edff;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer}
 /* tela cheia no iPhone: respeita o entalhe */
 body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+/* ---------- sons e combo ---------- */
+.chip-som{cursor:pointer;font-family:inherit}
+
+.feedback .combo{display:inline-block;background:#ff8a3d;color:#fff;border-radius:999px;padding:1px 10px;margin-right:6px;font-weight:800;font-size:14px}
+.combo-pop{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:70;pointer-events:none;
+  background:linear-gradient(135deg,#ff8a3d,#ef4444);color:#fff;font-family:'Baloo 2';font-size:40px;font-weight:800;
+  border:5px solid #fff;border-radius:28px;padding:10px 26px;text-align:center;box-shadow:0 10px 0 #0004;animation:comboPop 1.6s ease-out forwards}
+.combo-pop small{display:block;font-size:18px;font-family:Nunito}
+@keyframes comboPop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}15%{transform:translate(-50%,-50%) scale(1.15);opacity:1}
+  30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-80%) scale(.9);opacity:0}}
+.estr-final{display:inline-block;transform:scale(0);animation:estrPop .5s cubic-bezier(.2,1.6,.4,1) forwards}
+.estr-final:not(.ganha){opacity:.5}
+@keyframes estrPop{to{transform:scale(1)}}

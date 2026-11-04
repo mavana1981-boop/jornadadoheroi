@@ -20,30 +20,9 @@
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const sorteio = a => a[Math.floor(Math.random() * a.length)];
 
-  let vozPt = null;
-  function carregarVoz() { const v = speechSynthesis.getVoices(); vozPt = v.find(x => /pt[-_]BR/i.test(x.lang)) || v.find(x => /^pt/i.test(x.lang)) || null; }
-  if ("speechSynthesis" in window) { carregarVoz(); speechSynthesis.onvoiceschanged = carregarVoz; }
-  function falar(txt) {
-    if (!("speechSynthesis" in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(String(txt).replace(/___/g, "lacuna").replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ""));
-    u.lang = "pt-BR"; u.rate = 0.95; if (vozPt) u.voice = vozPt; speechSynthesis.speak(u);
-  }
-
-  let ctx;
-  function som(tipo) {
-    try {
-      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-      const notas = { ok: [523, 659, 784], erro: [220, 180], vitoria: [523, 659, 784, 1046], clique: [440], dano: [300, 150] }[tipo] || [440];
-      notas.forEach((f, i) => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = tipo === "erro" || tipo === "dano" ? "sawtooth" : "triangle"; o.frequency.value = f;
-        g.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.11);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.11 + 0.25);
-        o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + i * 0.11); o.stop(ctx.currentTime + i * 0.11 + 0.26);
-      });
-    } catch (e) { }
-  }
+  // sons: efeitos curtos (sem narração) — ver static/js/sons.js
+  const som = (nome, ...x) => window.SONS && SONS.tocar(nome, ...x);
+  let seguidas = 0;  // acertos seguidos (combo)
 
   function confete(dur = 2200) {
     const cv = $("#confete"), c = cv.getContext("2d");
@@ -67,11 +46,9 @@
     tela.innerHTML = `<div class="desafio">
       <span class="tag">${item.mundo.emoji} ${esc(item.materia)} · ${tag}</span>
       <div class="assunto-item">📘 ${esc(item.conteudo)}</div>
-      <button class="falar" title="Ouvir">🔊</button>
       ${(item.paginas || []).length ? `<button class="ver-livro" title="Ver as páginas do livro">📖 pág. ${esc(item.paginas_txt || "")}</button>` : ""}
       ${conteudoHTML}
       <div class="feedback" id="fb"></div></div>`;
-    $(".falar", tela).onclick = () => falar(enunciadoFala);
     const vl = $(".ver-livro", tela);
     if (vl) vl.onclick = () => { som("clique"); abrirLivro(item.paginas, 0, item.conteudo); };
     return $(".desafio", tela);
@@ -170,7 +147,7 @@
       if (!sel) return;
       if (sel.dataset.l === b.dataset.r) {
         [sel, b].forEach(x => { x.classList.remove("sel"); x.classList.add("certa"); x.disabled = true; });
-        sel = null; feitos++; som("ok");
+        sel = null; feitos++; som("par");
         if (feitos === d.pares.length) fim(erros <= 1, erros ? `Você completou com ${erros} erro(s).` : "Todos os pares de primeira!");
       } else {
         erros++; som("erro"); b.classList.add("errada"); setTimeout(() => b.classList.remove("errada"), 450);
@@ -185,12 +162,12 @@
       <div class="memoria">${cartas.map((c, k) => `<div class="carta-m" data-k="${k}"><div class="in"><div class="f">❓</div><div class="v ${temImg(it, c.t) ? "com-img" : ""}">${peca(it, c.t)}</div></div></div>`).join("")}</div>`, d.titulo);
     el.querySelectorAll(".carta-m").forEach(cv => cv.onclick = () => {
       if (travado || cv.classList.contains("virada")) return;
-      cv.classList.add("virada"); abertas.push(cv); som("clique");
+      cv.classList.add("virada"); abertas.push(cv); som("virar");
       if (abertas.length === 2) {
         jogadas++; travado = true;
         const [a, b] = abertas;
         if (cartas[a.dataset.k].i === cartas[b.dataset.k].i) {
-          a.classList.add("par"); b.classList.add("par"); abertas = []; travado = false; pares++; som("ok");
+          a.classList.add("par"); b.classList.add("par"); abertas = []; travado = false; pares++; som("par");
           if (pares === d.pares.length) fim(jogadas <= d.pares.length * 2 + 1, `Você achou tudo em ${jogadas} jogadas!`);
         } else setTimeout(() => { a.classList.remove("virada"); b.classList.remove("virada"); abertas = []; travado = false; }, 900);
       }
@@ -231,7 +208,7 @@
       if (k >= itens.length) return;
       const ci = +b.dataset.c;
       if (d.categorias[ci] === itens[k].categoria) {
-        som("ok"); cont[ci]++; $("#cnt" + ci, el).textContent = cont[ci] + " itens"; k++;
+        som("par"); cont[ci]++; $("#cnt" + ci, el).textContent = cont[ci] + " itens"; k++;
         if (k === itens.length) { vez.textContent = "Baús cheios! 🎉"; fim(erros <= 1, erros ? `Você terminou com ${erros} erro(s).` : "Tudo no lugar certo!"); }
         else mostrar();
       } else {
@@ -247,7 +224,7 @@
         <div class="f">${it.visual ? `<div class="flash-img">${vis(it.visual, "medio")}</div>` : `<div style="font-size:56px">${esc(d.emoji || "🃏")}</div>`}${esc(d.frente)}<div class="dica">Pense na resposta… depois toque para virar!</div></div>
         <div class="v">${esc(d.verso)}</div></div></div>
       <div class="opcoes duas" id="auto" style="display:none"><button class="op" data-s="1">😎 Eu sabia!</button><button class="op" data-s="0">🤔 Preciso treinar</button></div>`, d.frente);
-    $("#fl", el).onclick = () => { $("#fl", el).classList.add("virada"); $("#auto", el).style.display = "grid"; falar(d.verso); };
+    $("#fl", el).onclick = () => { $("#fl", el).classList.add("virada"); $("#auto", el).style.display = "grid"; som("virar"); };
     el.querySelectorAll("[data-s]").forEach(b => b.onclick = () => {
       el.querySelectorAll("[data-s]").forEach(x => x.disabled = true);
       b.classList.add(b.dataset.s === "1" ? "certa" : "sel");
@@ -309,7 +286,7 @@
         return `<div class="leitura-bloco" data-b="${bi}" style="--c1:${b.mundo.cor};--c2:${b.mundo.cor2}">
         <div class="lb-topo"><span class="lb-emoji">${esc(b.emoji)}</span><div><b>${esc(b.titulo)}</b><div class="mini">${esc(b.materia)}${b.paginas ? " · pág. " + esc(b.paginas) : ""}</div></div><span class="lb-ok" id="ok${bi}"></span></div>
         ${r.topicos.length ? `<div class="resumo-heroi">
-          <div class="rh-topo"><b>⚡ Resumo do Herói</b><button class="rh-ouvir" data-b="${bi}">🔊 Ouvir</button></div>
+          <div class="rh-topo"><b>⚡ Resumo do Herói</b></div>
           <ul>${r.topicos.map(t => `<li><span class="rh-emoji">${esc(t.emoji)}</span><span>${negrito(t.texto)}</span></li>`).join("")}</ul>
           ${r.lembre ? `<div class="rh-lembre">💡 <b>Lembre:</b> ${negrito(r.lembre)}</div>` : ""}
         </div>` : ""}
@@ -318,11 +295,6 @@
       </div>`;
       }).join("")}`;
     const marcar = bi => { $("#ok" + bi).textContent = "✅"; };
-    tela.querySelectorAll(".rh-ouvir").forEach(el => el.onclick = () => {
-      const b = blocos[+el.dataset.b], r = b.resumo;
-      som("clique"); marcar(+el.dataset.b);
-      falar(`${b.titulo}. ` + r.topicos.map(t => semMarcas(t.texto)).join(" ") + (r.lembre ? " Lembre: " + semMarcas(r.lembre) : ""));
-    });
     tela.querySelectorAll(".lb-livro").forEach(el => el.onclick = () => {
       const t = $("#tira" + el.dataset.b);
       t.hidden = !t.hidden; som("clique");
@@ -333,7 +305,6 @@
       som("clique"); marcar(b);
       abrirLivro(blocos[b].fotos, f, blocos[b].titulo);
     });
-    falar("Aquecimento do herói! " + txt);
     mostrarContinuar("Já li! Começar o desafio ⚔️", proximo);
   }
 
@@ -359,8 +330,7 @@
     tela.innerHTML = `<div class="fase-banner">
       <div class="avatar grande" style="--cor:${h.cor};margin:0 auto 12px">${h.avatar}${(h.itens || []).map((e, i) => `<span class="equip e${i}">${e}</span>`).join("")}</div>
       <h2>${esc(D.tipo === "batalha_final" ? "⚔️ Batalha Final" : D.titulo || "Missão")}</h2></div>
-      <div class="mentor"><div class="coruja">🦉</div><div class="balao">${esc(D.historia)} <button class="falar" style="position:static;width:36px;height:36px;font-size:18px">🔊</button></div></div>`;
-    $(".balao .falar").onclick = () => falar(D.historia);
+      <div class="mentor"><div class="coruja">🦉</div><div class="balao">${esc(D.historia)}</div></div>`;
     tela.insertAdjacentHTML("beforeend", quadroAssuntos(D.assuntos, D.tipo));
     if (D.status === "concluida") {
       tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão hoje! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
@@ -381,11 +351,19 @@
       ${chefe.length ? `<h4>${esc(D.chefe.emoji)} No Chefão também cai:</h4><ul>${chefe.map(linha).join("")}</ul>` : ""}</div>`;
   }
 
+  function mostrarCombo(n) {
+    const el = document.createElement("div");
+    el.className = "combo-pop";
+    el.innerHTML = `🔥 ${n} seguidas!<small>${n >= 10 ? "Imparável!" : n >= 5 ? "Pegando fogo!" : "Que sequência!"}</small>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+  }
+
   function bannerFase(f, depois) {
     const F = FASES[f];
     const nome = f === 3 ? `Chefão: ${D.chefe.nome}` : F.nome;
     tela.innerHTML = `<div class="fase-banner"><div class="grande">${f === 3 ? D.chefe.emoji : F.emoji}</div><h2>Fase ${f}: ${esc(nome)}</h2><p style="font-size:18px">${F.texto}</p></div>`;
-    falar(`Fase ${f}. ${nome}. ${F.texto}`);
+    som("fase");
     mostrarContinuar("Vamos! ⚡", depois);
   }
 
@@ -421,13 +399,18 @@
     }
     const fb = $("#fb");
     if (acertou) {
-      som("ok"); fb.className = "feedback ok"; fb.innerHTML = `<b>${sorteio(ELOGIOS)}</b> ${esc(texto || "")}`;
+      seguidas++;
+      if (seguidas >= 2) window.SONS && SONS.combo(seguidas); else som("acerto");
+      const fogo = seguidas >= 3 ? `<span class="combo">🔥 ${seguidas} seguidas!</span>` : "";
+      fb.className = "feedback ok"; fb.innerHTML = `${fogo}<b>${sorteio(ELOGIOS)}</b> ${esc(texto || "")}`;
+      if ([3, 5, 10, 15].includes(seguidas)) mostrarCombo(seguidas);
       if (faseAtual === 3 && MODO === "missao") {
         hpChefe = Math.max(0, hpChefe - danoPorAcerto);
         const m = $("#monstro"); if (m) { m.classList.remove("dano"); void m.offsetWidth; m.classList.add("dano"); som("dano"); }
         const hp = $("#hpchefe"); if (hp) hp.style.width = hpChefe + "%";
       }
     } else {
+      seguidas = 0;
       som("erro"); fb.className = "feedback nao"; fb.innerHTML = `<b>${sorteio(CONSOLO)}</b>${esc(texto || "")}`;
       // repetição imediata: o desafio errado volta no fim da fase (uma vez)
       if (!item._retry) {
@@ -437,7 +420,6 @@
         fila.splice(pos, 0, copia);
       }
     }
-    if (!silencioso && texto) falar(texto);
     atualizarHud(); idx++;
     mostrarContinuar(idx >= fila.length ? "Ver recompensas 🎁" : "Continuar ➜");
   }
@@ -449,10 +431,10 @@
     const r = await fetch("/api/concluir", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ missao_id: D.missao_id, modo: MODO === "missao" ? "missao" : "treino", acertos: acertosPrimeira, total: totalUnicos }) });
     const j = await r.json();
-    som("vitoria"); confete(j.estrelas >= 2 ? 3200 : 1600);
+    window.SONS && SONS.festa(j.estrelas); confete(j.estrelas >= 2 ? 3600 : 1800);
     const msg = j.estrelas === 3 ? "Missão perfeita! Você é uma lenda!" : j.estrelas === 2 ? "Muito bem! O chefão está fraquinho!" : "Missão completa! Amanhã você fica ainda mais forte!";
     tela.innerHTML = `<div class="final">
-      <div class="estrelas">${[1, 2, 3].map(n => `<span>${n <= j.estrelas ? "⭐" : "☆"}</span>`).join("")}</div>
+      <div class="estrelas">${[1, 2, 3].map(n => `<span class="estr-final ${n <= j.estrelas ? "ganha" : ""}" style="animation-delay:${1.5 + n * 0.35}s">${n <= j.estrelas ? "⭐" : "☆"}</span>`).join("")}</div>
       <h2 style="font-size:36px">${msg}</h2>
       <p style="font-size:20px">Você acertou <b>${acertosPrimeira}</b> de <b>${totalUnicos}</b> de primeira.</p>
       <div><span class="premio">⭐ +${j.bonus_xp + acertosPrimeira * (MODO === "missao" ? 10 : 5)} XP</span>
@@ -461,8 +443,9 @@
       ${j.subiu_nivel ? `<h2 style="margin-top:18px">🎊 Subiu para o nível ${j.nivel}: ${esc(j.titulo)}!</h2>` : ""}
       ${(j.conquistas || []).map(c => `<div class="premio" style="background:#ffbe0b33">${c.emoji} Nova conquista: ${esc(c.nome)}</div>`).join("")}
     </div>`;
-    falar(msg);
-    mostrarContinuar(MODO === "missao" ? "Ver o herói andar no mapa 🧭" : "Voltar ao mapa 🗺️",
+    for (let n = 0; n < j.estrelas; n++) setTimeout(() => som("estrela", n), 1850 + n * 350);
+    setTimeout(() => som("moeda"), 2000 + j.estrelas * 350);
+    if (j.subiu_nivel) setTimeout(() => { som("nivel"); confete(2500); }, 3000 + j.estrelas * 350);    mostrarContinuar(MODO === "missao" ? "Ver o herói andar no mapa 🧭" : "Voltar ao mapa 🗺️",
       () => location.href = MODO === "missao" ? "/?andou=1" : "/");
   }
 

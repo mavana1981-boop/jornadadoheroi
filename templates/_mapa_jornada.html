@@ -232,8 +232,11 @@
     const de = Math.max(0, POS - 1);
     heroi.classList.add("sem-transicao"); posicionarHeroi(de); void heroi.offsetWidth; heroi.classList.remove("sem-transicao");
     rolarAte(de);
-    setTimeout(() => { heroi.classList.add("andando"); posicionarHeroi(POS); }, 900);
-    setTimeout(() => { heroi.classList.remove("andando"); confete(); }, 2400);
+    setTimeout(() => {
+      heroi.classList.add("andando"); posicionarHeroi(POS);
+      for (let k = 0; k < 4; k++) setTimeout(() => window.SONS && SONS.tocar("passo", k), k * 320);
+    }, 900);
+    setTimeout(() => { heroi.classList.remove("andando"); confete(); window.SONS && SONS.tocar("chegada"); }, 2400);
   } else {
     setTimeout(() => rolarAte(POS), 250);
   }

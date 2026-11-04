@@ -5,6 +5,7 @@
   <div class="hud">
     <a class="chip" href="{{ url_for('pais') if modo == 'previa' else url_for('inicio') }}" onclick="return confirm('Sair agora? O progresso desta rodada fica salvo só até aqui.')">✕</a>
     <div class="progresso"><div class="barra"><i id="barra" style="width:0%"></i></div></div>
+    <button class="chip chip-som" data-som>🔔</button>
     <span class="chip" id="placar">⭐ 0</span>
   </div>
   <div id="arena"></div>

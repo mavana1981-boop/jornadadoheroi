@@ -2,8 +2,8 @@
    - Páginas: tenta a internet primeiro; sem conexão, mostra a última versão salva (ou o aviso offline).
    - Arquivos fixos, páginas do livro e ilustrações: usa a cópia salva e atualiza por trás.
    - Respostas do jogo (/api) e do Painel dos Pais nunca são guardadas. */
-const VERSAO = "jornada-v1";
-const FIXOS = ["/static/css/style.css", "/static/js/jogos.js", "/static/js/ilustracoes.js",
+const VERSAO = "jornada-v2";
+const FIXOS = ["/static/css/style.css", "/static/js/jogos.js", "/static/js/ilustracoes.js", "/static/js/sons.js",
   "/static/icones/icone-192.png", "/static/icones/icone-512.png", "/offline"];
 
 self.addEventListener("install", e => {
