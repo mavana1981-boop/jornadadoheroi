@@ -363,3 +363,21 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .carta-m .v.com-img .ilus img,.carta-m .v.com-img .ilus svg{max-height:none;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
 .item-vez .ilus{margin-bottom:6px}
 .flash-img{background:#fff;border-radius:16px;padding:6px;margin-bottom:10px}
+
+/* ---------- assuntos da missão ---------- */
+.quadro-assuntos{background:#fff;color:var(--ink);border-radius:var(--raio);padding:14px 16px;margin-top:14px;box-shadow:var(--sombra)}
+.quadro-assuntos h3{font-size:20px;margin-bottom:6px}
+.quadro-assuntos h4{font-size:15px;margin:10px 0 4px;color:var(--muted)}
+.quadro-assuntos ul{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.quadro-assuntos li{display:flex;gap:10px;align-items:center;background:#faf9ff;border-radius:12px;padding:6px 10px}
+.as-emoji{font-size:24px;flex:none}
+.as-txt{display:flex;flex-direction:column;line-height:1.2}
+.as-txt b{font-size:15px}
+.as-txt small{font-size:12px;color:var(--muted);font-weight:700}
+.desafio .assunto-item{font-size:13px;font-weight:800;color:var(--muted);margin-top:6px;padding-right:50px}
+.home-assuntos{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;max-width:72%}
+.home-assuntos span{background:#ffffff2e;border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px}
+.nd-mundos{font-size:13px;line-height:1;background:#fff;border-radius:999px;padding:2px 5px;box-shadow:0 2px 0 #0003;margin-top:1px}
+.f-assuntos{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}
+.f-assuntos li{display:flex;gap:8px;align-items:center;background:#f6f4ff;border-radius:12px;padding:6px 10px;font-size:15px}
+.f-assuntos li small{display:block;color:var(--muted);font-weight:700;font-size:12px}

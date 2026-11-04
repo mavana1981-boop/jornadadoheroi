@@ -29,6 +29,7 @@
       <div style="font-weight:800;opacity:.9">MISSÃO DE HOJE · {{ hoje|data_br }}</div>
       <h2>{% if missao and missao.tipo == 'batalha_final' %}⚔️ Batalha Final!{% else %}Sua aventura te espera!{% endif %}</h2>
       <p style="max-width:65%;font-size:17px">{{ missao.titulo if missao else '3 fases: Aquecimento, Desafio e Chefão.' }}</p>
+      {% if assuntos_hoje %}<div class="home-assuntos">{% for a in assuntos_hoje %}<span>{{ a.emoji }} {{ a.titulo }}</span>{% endfor %}</div>{% endif %}
       <a href="{{ url_for('missao') }}" class="btn branco enorme" style="margin-top:6px">▶ Jogar</a>
       <div class="bau">🎁</div>
     </div>

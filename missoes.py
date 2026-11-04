@@ -223,3 +223,37 @@ def plano_de_revisao(prova, dia=None):
             status = f"em {(c.proxima_revisao - dia).days} dia(s)"
         linhas.append({"c": c, "status": status})
     return linhas
+
+
+def assuntos(missao):
+    """Conteúdos cobrados numa missão, na ordem em que aparecem.
+
+    Cada item: {id, titulo, emoji, materia, prova, mundo_emoji, paginas, fases}
+    (fases: 1 = primeiros golpes, 2 = desafio, 3 = chefão/batalha).
+    """
+    if not missao:
+        return []
+    itens = missao.lista_itens()
+    ids = [i["atividade_id"] for i in itens]
+    if not ids:
+        return []
+    ativ = {a.id: a for a in Atividade.query.filter(Atividade.id.in_(ids)).all()}
+    out = {}
+    for i in sorted(itens, key=lambda x: x["fase"]):
+        a = ativ.get(i["atividade_id"])
+        if not a:
+            continue
+        c = a.conteudo
+        if c.id not in out:
+            out[c.id] = {"id": c.id, "titulo": c.titulo, "emoji": c.emoji, "materia": c.prova.materia,
+                         "prova": c.prova.nome, "mundo_emoji": c.prova.mundo["emoji"],
+                         "paginas": c.paginas or "", "fases": []}
+        if i["fase"] not in out[c.id]["fases"]:
+            out[c.id]["fases"].append(i["fase"])
+    return list(out.values())
+
+
+def assuntos_da_prova(prova):
+    return [{"id": c.id, "titulo": c.titulo, "emoji": c.emoji, "materia": prova.materia, "prova": prova.nome,
+             "mundo_emoji": prova.mundo["emoji"], "paginas": c.paginas or "", "fases": [3]}
+            for c in prova.conteudos if c.atividades_ativas()]

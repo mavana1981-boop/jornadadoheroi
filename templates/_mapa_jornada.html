@@ -75,7 +75,7 @@
       b.className = `no-dia ${n.tipo} ${n.status}`;
       b.style.setProperty("--c1", n.cor);
       b.innerHTML = `<span class="nd-bola"><span class="nd-ico ${n.status === "feita" ? "estr" : ""}">${icone}</span></span>
-        <span class="nd-data">${esc(n.semana)} ${n.dia}</span>`;
+        <span class="nd-data">${esc(n.semana)} ${n.dia}</span>${(n.mundos_dia || []).length ? `<span class="nd-mundos">${n.mundos_dia.map(esc).join("")}</span>` : ""}`;
     }
     b.onclick = () => abrirFolha(i);
     mapa.appendChild(b);
@@ -196,13 +196,18 @@
         <a class="btn roxo" href="${n.url}">Treinar este mundo ${esc(n.emoji)}</a>`;
     } else {
       const titulo = n.tipo === "batalha" ? `⚔️ Batalha Final` : `📜 Missão do dia`;
+      const lista = (n.assuntos || []).map(a => `<li><span style="font-size:22px">${esc(a.emoji)}</span><span><b>${esc(a.titulo)}</b>
+          <small>${esc(a.mundo_emoji)} ${esc(a.prova)}${a.paginas ? ` · pág. ${esc(a.paginas)}` : ""}${!n.previsto && n.tipo !== "batalha" && !a.fases.some(f => f < 3) ? " · no Chefão" : ""}</small></span></li>`).join("");
+      const blocoAssuntos = lista
+        ? `<h4 style="margin-top:12px">${n.tipo === "batalha" ? "📋 Tudo o que cai na prova" : "📋 Assuntos"}</h4><ul class="f-assuntos">${lista}</ul>`
+        : (n.status === "futura" ? `<p class="mini">📋 Os assuntos deste dia são escolhidos na hora, de acordo com o que você mais precisa revisar. O Chefão sempre traz perguntas da prova de <b>${esc(n.alvo)}</b>.</p>` : "");
       let corpo;
       if (n.status === "feita") corpo = `<p>Missão cumprida! ${"⭐".repeat(n.estrelas)}<br>Você acertou <b>${n.acertos}</b> de <b>${n.total}</b> de primeira.</p>`;
       else if (n.status === "perdida") corpo = `<p>💤 Esse dia ficou sem missão. Tudo bem: o que faltou volta nas próximas missões.</p>`;
       else if (n.status === "hoje") corpo = `<p>${n.tipo === "batalha" ? `Amanhã é a prova de <b>${esc(n.alvo)}</b>! Hoje você enfrenta o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b> só com perguntas dessa prova.` : `Sua missão de hoje está pronta: leia as páginas no Aquecimento e vença o desafio!`}</p>
         <a class="btn verde enorme" href="${URL_MISSAO}">▶ Jogar agora</a>`;
-      else corpo = `<p>${n.tipo === "batalha" ? `Véspera da prova de <b>${esc(n.alvo)}</b>: batalha contra o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b>.` : `Revisão rumo à prova de <b>${esc(n.alvo)}</b> (faltarão ${n.faltam} dias).`}</p>
-        <p class="mini">Os desafios desse dia são escolhidos na hora, de acordo com o que você mais precisa treinar.</p>`;
+      else corpo = `<p>${n.tipo === "batalha" ? `Véspera da prova de <b>${esc(n.alvo)}</b>: batalha contra o <b>${esc(n.chefao_emoji)} ${esc(n.chefao)}</b>.` : `Revisão rumo à prova de <b>${esc(n.alvo)}</b> (faltarão ${n.faltam} dias).`}</p>`;
+      corpo += blocoAssuntos;
       h = `<div class="f-topo" style="--c1:${n.cor};--c2:${n.cor}"><span style="font-size:44px">${n.status === "feita" ? "🏆" : n.status === "perdida" ? "💤" : n.tipo === "batalha" ? esc(n.chefao_emoji) : "🗺️"}</span>
         <div><div class="f-tag">${esc(n.semana)}, ${esc(n.data_br)}${i === POS ? " · HOJE" : ""}</div><h3>${titulo}</h3></div></div>${corpo}`;
     }

@@ -329,8 +329,11 @@ def inicio():
     hoje = date.today()
     missao = Missao.query.filter_by(data=hoje).first()
     tem_futuras = bool(missoes.provas_futuras(hoje))
+    ctx = contexto_jornada()
+    missao = Missao.query.filter_by(data=hoje).first()
     return render_template("inicio.html", heroi=heroi, provas=provas, missao=missao,
-                           tem_futuras=tem_futuras, conquistas=conquistas_de(heroi), **contexto_jornada())
+                           tem_futuras=tem_futuras, conquistas=conquistas_de(heroi),
+                           assuntos_hoje=missoes.assuntos(missao), **ctx)
 
 
 @app.route("/mundo/<int:prova_id>")
@@ -400,6 +403,12 @@ def plano_jornada(hoje=None):
             alvo = futuras[0]
             m = feitas.get(d)
             batalha = (m.tipo == "batalha_final") if m else (alvo.data - d).days <= 1
+            if m:
+                lista, previsto = missoes.assuntos(m), False
+            elif batalha:
+                lista, previsto = missoes.assuntos_da_prova(alvo), True
+            else:
+                lista, previsto = [], True
             if m and m.status == "concluida":
                 status = "feita"
             elif d == hoje:
@@ -412,7 +421,9 @@ def plano_jornada(hoje=None):
                         "acertos": m.acertos if m else 0, "total": m.total if m else 0,
                         "alvo": alvo.nome, "alvo_data": alvo.data.strftime("%d/%m"), "faltam": (alvo.data - d).days,
                         "cor": mundo["cor"], "cor2": mundo["cor2"], "emoji_mundo": mundo["emoji"],
-                        "chefao": mundo["chefao"], "chefao_emoji": mundo["chefao_emoji"]})
+                        "chefao": mundo["chefao"], "chefao_emoji": mundo["chefao_emoji"],
+                        "assuntos": lista, "previsto": previsto,
+                        "mundos_dia": list(dict.fromkeys(x["mundo_emoji"] for x in lista)) if not previsto else []})
         d += timedelta(days=1)
     return nos
 
@@ -420,6 +431,8 @@ def plano_jornada(hoje=None):
 def contexto_jornada():
     """Dados do mapa da jornada para os templates (tela inicial e /jornada)."""
     heroi = Heroi.query.first()
+    if missoes.provas_futuras(date.today()):
+        missoes.gerar_missao()  # a missão de hoje já existe ao abrir o mapa (mostra os assuntos dela)
     nos = plano_jornada() or []
     hoje = date.today().isoformat()
     # onde o herói está: a missão de hoje; se a jornada acabou, no último ponto
@@ -496,6 +509,7 @@ def api_missao_itens():
         "chefe": {"nome": chefe["chefao"], "emoji": chefe["chefao_emoji"]},
         "itens": _pacote([p[0] for p in pares], [p[1] for p in pares]),
         "leitura": leitura_de(_conteudos_em_ordem([p[0] for p in pares])),
+        "assuntos": missoes.assuntos(m),
     })
 
 

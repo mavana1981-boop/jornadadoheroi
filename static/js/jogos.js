@@ -66,6 +66,7 @@
     const tag = window.TIPOS_NOMES[item.tipo] || "";
     tela.innerHTML = `<div class="desafio">
       <span class="tag">${item.mundo.emoji} ${esc(item.materia)} · ${tag}</span>
+      <div class="assunto-item">📘 ${esc(item.conteudo)}</div>
       <button class="falar" title="Ouvir">🔊</button>
       ${(item.paginas || []).length ? `<button class="ver-livro" title="Ver as páginas do livro">📖 pág. ${esc(item.paginas_txt || "")}</button>` : ""}
       ${conteudoHTML}
@@ -340,10 +341,24 @@
       <h2>${esc(D.tipo === "batalha_final" ? "⚔️ Batalha Final" : D.titulo || "Missão")}</h2></div>
       <div class="mentor"><div class="coruja">🦉</div><div class="balao">${esc(D.historia)} <button class="falar" style="position:static;width:36px;height:36px;font-size:18px">🔊</button></div></div>`;
     $(".balao .falar").onclick = () => falar(D.historia);
+    tela.insertAdjacentHTML("beforeend", quadroAssuntos(D.assuntos, D.tipo));
     if (D.status === "concluida") {
       tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão hoje! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
     }
     mostrarContinuar(D.itens.length ? "Começar! ▶" : "Voltar", D.itens.length ? leitura : () => history.back());
+  }
+
+  // lista dos assuntos cobrados na missão, separada em "desafio" e "chefão"
+  function quadroAssuntos(lista, tipo) {
+    if (!lista || !lista.length) return "";
+    const linha = a => `<li><span class="as-emoji">${esc(a.emoji)}</span><span class="as-txt"><b>${esc(a.titulo)}</b>
+        <small>${esc(a.mundo_emoji)} ${esc(a.prova)}${a.paginas ? ` · pág. ${esc(a.paginas)}` : ""}</small></span></li>`;
+    if (tipo === "batalha_final") {
+      return `<div class="quadro-assuntos"><h3>📋 Tudo o que cai na prova</h3><ul>${lista.map(linha).join("")}</ul></div>`;
+    }
+    const desafio = lista.filter(a => a.fases.some(f => f < 3)), chefe = lista.filter(a => !a.fases.some(f => f < 3));
+    return `<div class="quadro-assuntos"><h3>📋 Assuntos de hoje</h3><ul>${desafio.map(linha).join("")}</ul>
+      ${chefe.length ? `<h4>${esc(D.chefe.emoji)} No Chefão também cai:</h4><ul>${chefe.map(linha).join("")}</ul>` : ""}</div>`;
   }
 
   function bannerFase(f, depois) {
