@@ -62,11 +62,20 @@ Tipos aceitos e o formato JSON de "dados" de cada um:
 - "ordenar": {"titulo": str, "itens": [3 a 5 strings JÁ na ordem correta], "explicacao": str}
 - "categorizar": {"titulo": str, "categorias": [2 ou 3 strings], "itens": [{"texto": str, "categoria": uma das categorias}, ... 5 a 8 itens]}
 - "flashcard": {"frente": str (pergunta curta), "verso": str (resposta curta), "emoji": str}
+
+ILUSTRAÇÕES (muito importante — o jogo é bem visual):
+- Em qualquer tipo, inclua "imagem": descrição curta, em português, de uma ilustração que ajude a entender o enunciado
+  (ex.: "menina andando de bicicleta", "corte do solo mostrando as camadas"). Não descreva a resposta.
+- Em "memoria", "ligar", "ordenar", "categorizar" e nas opções de "quiz", inclua "imagens": {"texto exato da carta/item": "descrição da ilustração"}
+  para tudo que puder ser desenhado (objetos, animais, lugares, ações, alimentos). Em jogos de pares, ilustre só um lado de cada par.
+- Para formas geométricas use exatamente: "svg:cubo", "svg:paralelepipedo", "svg:piramide:3" (ou 4, 5, 6 = lados da base),
+  "svg:prisma:3", "svg:cilindro", "svg:cone", "svg:esfera". Para medidas exatas use "svg:balanca:500 g", "svg:jarra:250" (mL, até 1000),
+  "svg:regua:14" (cm). Para frações use "svg:partes:4" (círculo em 4 partes iguais).
 """
 
 PUBLICO = """Público: criança de 8 anos, 3º ano do Ensino Fundamental, no Brasil.
 Linguagem: português do Brasil, frases curtas, vocabulário simples, tom de aventura e de jogo.
-Cada atividade deve ter forte apelo visual: use emojis que ajudem a lembrar a ideia (sem exagerar).
+Cada atividade deve ter forte apelo visual: ilustrações (campos "imagem"/"imagens") e emojis que ajudem a lembrar a ideia.
 Seja fiel ao conteúdo escolar informado — nada de inventar fatos. Respostas sem ambiguidade."""
 
 
@@ -205,4 +214,64 @@ def validar(tipo, d):
             return None
     except (TypeError, ValueError):
         return None
+    # ilustrações opcionais: "imagem" (do enunciado) e "imagens" ({texto exato: descrição})
+    if _s(d.get("imagem")):
+        out["imagem"] = _s(d["imagem"], 200)
+    if isinstance(d.get("imagens"), dict):
+        imgs = {_s(k, 120): _s(v, 200) for k, v in d["imagens"].items() if _s(k) and _s(v)}
+        if imgs:
+            out["imagens"] = dict(list(imgs.items())[:12])
     return {"tipo": tipo, "dados": out}
+
+
+# ---------------------------------------------------------------------------
+# Geração de imagens (ilustrações das atividades)
+# ---------------------------------------------------------------------------
+MODELOS_IMAGEM = ["gemini-nano-banana-2.1", "gemini-3.1-flash-lite-image", "gemini-3.1-flash-image",
+                  "gemini-2.5-flash-image"]
+
+ESTILO_IMAGEM = ("Ilustração para livro didático infantil: desenho colorido, traço limpo e simples, "
+                 "cores vivas, fundo branco liso, um único assunto centralizado e bem reconhecível, "
+                 "SEM nenhum texto, letra, número ou marca d'água. Assunto: ")
+
+
+class GeminiSemFaturamento(GeminiErro):
+    """A chave não pode gerar imagens (sem faturamento ou sem permissão)."""
+
+
+def gerar_imagem(descricao, modelo_preferido=None):
+    """Gera uma ilustração. Devolve (bytes, mime, modelo_usado)."""
+    chave = os.environ.get("GEMINI_API_KEY")
+    if not chave:
+        raise GeminiSemFaturamento("GEMINI_API_KEY não definida.")
+    modelos = [m for m in [os.environ.get("GEMINI_IMAGE_MODEL"), modelo_preferido] if m] + MODELOS_IMAGEM
+    vistos, ultimo = set(), ""
+    for m in modelos:
+        if m in vistos:
+            continue
+        vistos.add(m)
+        for modalidades in (["IMAGE"], ["TEXT", "IMAGE"]):
+            corpo = {"contents": [{"role": "user", "parts": [{"text": ESTILO_IMAGEM + descricao}]}],
+                     "generationConfig": {"responseModalities": modalidades,
+                                          "imageConfig": {"aspectRatio": "1:1"}}}
+            r = requests.post(GEMINI_URL.format(model=m), params={"key": chave}, json=corpo, timeout=120)
+            if r.status_code == 200:
+                for cand in r.json().get("candidates", []):
+                    for parte in (cand.get("content") or {}).get("parts", []):
+                        dado = parte.get("inlineData") or parte.get("inline_data")
+                        if dado and dado.get("data"):
+                            return (base64.b64decode(dado["data"]),
+                                    dado.get("mimeType") or dado.get("mime_type") or "image/png", m)
+                ultimo = "o modelo não devolveu imagem"
+                break  # tenta o próximo modelo
+            txt = r.text[:300]
+            ultimo = f"{r.status_code}: {txt}"
+            if r.status_code == 400 and ("responseModalities" in txt or "modalit" in txt.lower()):
+                continue  # tenta com outra combinação de modalidades
+            if r.status_code == 404 or (r.status_code == 400 and "not found" in txt.lower()):
+                break  # modelo não existe: tenta o próximo
+            if r.status_code in (401, 403) or "billing" in txt.lower() or (
+                    r.status_code == 429 and "free" in txt.lower() and "limit: 0" in txt.lower()):
+                raise GeminiSemFaturamento(f"A chave do Gemini não pode gerar imagens ({ultimo}).")
+            raise GeminiErro(f"Erro ao gerar imagem ({ultimo}).")
+    raise GeminiErro(f"Nenhum modelo de imagem disponível ({ultimo}).")

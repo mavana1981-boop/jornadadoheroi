@@ -15,5 +15,6 @@
 {% endblock %}
 {% block scripts %}
 <script>window.JOGO = {api: "{{ api }}", modo: "{{ modo }}"};</script>
+<script src="{{ url_for('static', filename='js/ilustracoes.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jogos.js') }}"></script>
 {% endblock %}

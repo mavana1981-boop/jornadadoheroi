@@ -223,6 +223,20 @@ class PaginaFoto(db.Model):
     criada_em = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Imagem(db.Model):
+    """Ilustração de atividade: gerada pelo Gemini ou baixada da Wikipédia, guardada uma vez só."""
+    id = db.Column(db.Integer, primary_key=True)
+    chave = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    spec = db.Column(db.String(400), nullable=False)   # "g:descrição|termo" ou "w:termo"
+    status = db.Column(db.String(12), default="pendente", index=True)  # pendente | gerando | ok | falha
+    origem = db.Column(db.String(20), default="")       # gemini | wikipedia
+    mime = db.Column(db.String(40), default="image/jpeg")
+    dados = db.Column(db.LargeBinary)
+    erro = db.Column(db.String(300), default="")
+    tentativas = db.Column(db.Integer, default=0)
+    criada_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Config(db.Model):
     chave = db.Column(db.String(60), primary_key=True)
     valor = db.Column(db.String(500))

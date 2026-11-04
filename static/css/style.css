@@ -287,3 +287,41 @@ pre.json{background:#f4f2ff;border-radius:12px;padding:10px;font-size:12px;white
 .home-mapa-topo{display:flex;align-items:center;gap:10px;margin:26px 0 2px}
 .home-mapa-topo h2{color:#fff;font-size:30px;flex:1}
 .home-mapa-sub{color:#fff;opacity:.9;font-size:16px;margin:0 2px 2px}
+
+/* ---------- imagens (painel) ---------- */
+.img-status{display:flex;gap:10px;margin:10px 0}
+.img-status div{flex:1;background:#f4f2ff;border-radius:14px;padding:8px;text-align:center}
+.img-status b{display:block;font-size:24px;font-family:'Baloo 2'}
+.img-status span{font-size:13px;color:var(--muted)}
+.barra-pais{height:10px;border-radius:99px;background:#e6e2fb;overflow:hidden}
+.barra-pais i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a)}
+
+/* ---------- ilustrações nos jogos ---------- */
+.ilus{display:flex;justify-content:center;align-items:center}
+.ilus img,.ilus svg{display:block;max-width:100%;height:auto}
+.ilus img{border-radius:14px;object-fit:contain;background:#fff}
+.ilus.grande{margin:4px auto 6px}
+.ilus.grande img,.ilus.grande svg{max-height:190px;width:auto;max-width:100%}
+.ilus.grande svg{width:240px}
+.ilus.medio img,.ilus.medio svg{max-height:120px;width:auto}
+.ilus.medio svg{width:150px}
+.ilus.peq img,.ilus.peq svg{max-height:74px;width:auto}
+.ilus.peq svg{width:96px}
+.ilus.falhou{display:none}
+.emoji-grande.reserva{display:none}
+.ilus.falhou + .emoji-grande.reserva{display:block}
+.peca-txt{display:block}
+.op .ilus{margin-bottom:6px}
+.opcoes.com-img{grid-template-columns:1fr 1fr}
+.opcoes.com-img .op{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:17px;padding:10px}
+.opcoes.com-img .ilus.peq img,.opcoes.com-img .ilus.peq svg{max-height:96px}
+.opcoes.com-img .ilus.peq svg{width:120px}
+.colunas .op{display:flex;flex-direction:column;align-items:center}
+.op-linha{display:flex;align-items:center;gap:10px;text-align:left}
+.op-linha .ilus{margin:0;flex:none}
+.op-linha .ilus.peq img,.op-linha .ilus.peq svg{max-height:56px;max-width:72px}
+.carta-m .v.com-img{padding:4px;align-content:center;gap:2px;font-size:13px;line-height:1.1}
+.carta-m .v.com-img .ilus{margin:0;width:100%}
+.carta-m .v.com-img .ilus img,.carta-m .v.com-img .ilus svg{max-height:none;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
+.item-vez .ilus{margin-bottom:6px}
+.flash-img{background:#fff;border-radius:16px;padding:6px;margin-bottom:10px}

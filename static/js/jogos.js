@@ -79,14 +79,30 @@
   window.TIPOS_NOMES = { quiz: "Desafio de escolha", vf: "Verdade ou Mentira", completar: "Complete a frase", contas: "Cálculo rápido",
     ligar: "Ligue os pares", memoria: "Jogo da memória", ordenar: "Coloque em ordem", categorizar: "Separe nos baús", flashcard: "Carta mágica" };
 
+
+  /* ------------------------- ilustrações ------------------------- */
+  // v = {svg} desenho exato do app | {img} imagem gerada/foto | undefined
+  function vis(v, tam = "peq") {
+    if (!v) return "";
+    if (v.svg) { const d = window.ILUS ? ILUS.svg(v.svg) : ""; return d ? `<div class="ilus ${tam}">${d}</div>` : ""; }
+    return `<div class="ilus ${tam}"><img src="${esc(v.img)}" alt="${esc(v.alt || "")}" loading="lazy" onerror="this.parentNode.classList.add('falhou')"></div>`;
+  }
+  // imagem do enunciado; se não houver (ou falhar), mostra o emoji
+  const topo = (it, emoji) => it.visual
+    ? `${vis(it.visual, "grande")}<div class="emoji-grande reserva">${esc(emoji || "")}</div>`
+    : (emoji ? `<div class="emoji-grande">${esc(emoji)}</div>` : "");
+  const temImg = (it, t) => !!(it.visuais && it.visuais[t]);
+  const peca = (it, t) => `${vis(it.visuais && it.visuais[t])}<span class="peca-txt">${esc(t)}</span>`;
+
   /* --------------------------- renders --------------------------- */
   const R = {};
 
   R.quiz = (it, fim) => {
     const d = it.dados, ops = embaralhar(d.opcoes.map((t, i) => ({ t, ok: i === d.correta })));
-    const el = cartao(it, `${d.emoji ? `<div class="emoji-grande">${esc(d.emoji)}</div>` : ""}
+    const comImg = ops.some(o => temImg(it, o.t));
+    const el = cartao(it, `${topo(it, d.emoji)}
       <div class="enunciado">${esc(d.pergunta)}</div>
-      <div class="opcoes ${ops.every(o => o.t.length < 28) ? "duas" : ""}">${ops.map((o, i) => `<button class="op" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>`, d.pergunta + ". " + d.opcoes.join(", "));
+      <div class="opcoes ${comImg ? "com-img" : ops.every(o => o.t.length < 28) ? "duas" : ""}">${ops.map((o, i) => `<button class="op" data-i="${i}">${comImg ? peca(it, o.t) : esc(o.t)}</button>`).join("")}</div>`, d.pergunta + ". " + d.opcoes.join(", "));
     el.querySelectorAll(".op").forEach(b => b.onclick = () => {
       const o = ops[+b.dataset.i];
       el.querySelectorAll(".op").forEach((x, i) => { x.disabled = true; if (ops[i].ok) x.classList.add("certa"); });
@@ -98,7 +114,7 @@
   R.completar = (it, fim) => {
     const d = it.dados, ops = embaralhar(d.opcoes.map((t, i) => ({ t, ok: i === d.correta })));
     const frase = esc(d.frase).replace("___", `<span class="lacuna" id="lac">?</span>`);
-    const el = cartao(it, `<div class="emoji-grande">✏️</div><div class="enunciado">${frase}</div>
+    const el = cartao(it, `${topo(it, "✏️")}<div class="enunciado">${frase}</div>
       <div class="opcoes duas">${ops.map((o, i) => `<button class="op" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>`, d.frase);
     el.querySelectorAll(".op").forEach(b => b.onclick = () => {
       const o = ops[+b.dataset.i];
@@ -111,7 +127,7 @@
 
   R.vf = (it, fim) => {
     const d = it.dados;
-    const el = cartao(it, `<div class="emoji-grande">${esc(d.emoji || "🤔")}</div><div class="enunciado">${esc(d.afirmacao)}</div>
+    const el = cartao(it, `${topo(it, d.emoji || "🤔")}<div class="enunciado">${esc(d.afirmacao)}</div>
       <div class="vf"><button class="op" data-v="1">✅ Verdade</button><button class="op" data-v="0">❌ Mentira</button></div>`, d.afirmacao + ". Verdade ou mentira?");
     el.querySelectorAll(".op").forEach(b => b.onclick = () => {
       const escolha = b.dataset.v === "1", ok = escolha === d.resposta;
@@ -123,7 +139,7 @@
 
   R.contas = (it, fim) => {
     const d = it.dados; let valor = "";
-    const el = cartao(it, `<div class="emoji-grande">${esc(d.emoji || "🧮")}</div><div class="enunciado">${esc(d.pergunta)}</div>
+    const el = cartao(it, `${topo(it, d.emoji || "🧮")}<div class="enunciado">${esc(d.pergunta)}</div>
       <div class="visor"><span id="vis">_</span> <small>${esc(d.unidade || "")}</small></div>
       <div class="teclado">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "⌫", 0, "✔"].map(k => `<button data-k="${k}">${k}</button>`).join("")}</div>`, d.pergunta);
     const vis = $("#vis", el);
@@ -146,8 +162,8 @@
     const d = it.dados, esq = embaralhar(d.pares.map((p, i) => ({ t: p[0], i }))), dir = embaralhar(d.pares.map((p, i) => ({ t: p[1], i })));
     let sel = null, erros = 0, feitos = 0;
     const el = cartao(it, `<div class="enunciado">🔗 ${esc(d.titulo)}</div><p class="mini">Toque em um item da esquerda e depois no par dele à direita.</p>
-      <div class="colunas"><div class="opcoes">${esq.map(o => `<button class="op" data-l="${o.i}">${esc(o.t)}</button>`).join("")}</div>
-      <div class="opcoes">${dir.map(o => `<button class="op" data-r="${o.i}">${esc(o.t)}</button>`).join("")}</div></div>`, d.titulo);
+      <div class="colunas"><div class="opcoes">${esq.map(o => `<button class="op" data-l="${o.i}">${peca(it, o.t)}</button>`).join("")}</div>
+      <div class="opcoes">${dir.map(o => `<button class="op" data-r="${o.i}">${peca(it, o.t)}</button>`).join("")}</div></div>`, d.titulo);
     el.querySelectorAll("[data-l]").forEach(b => b.onclick = () => { el.querySelectorAll("[data-l]").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); sel = b; som("clique"); });
     el.querySelectorAll("[data-r]").forEach(b => b.onclick = () => {
       if (!sel) return;
@@ -165,7 +181,7 @@
     const d = it.dados, cartas = embaralhar(d.pares.flatMap((p, i) => [{ t: p[0], i }, { t: p[1], i }]));
     let abertas = [], pares = 0, jogadas = 0, travado = false;
     const el = cartao(it, `<div class="enunciado">🧠 ${esc(d.titulo)}</div><p class="mini">Vire duas cartas e encontre os pares que combinam.</p>
-      <div class="memoria">${cartas.map((c, k) => `<div class="carta-m" data-k="${k}"><div class="in"><div class="f">❓</div><div class="v">${esc(c.t)}</div></div></div>`).join("")}</div>`, d.titulo);
+      <div class="memoria">${cartas.map((c, k) => `<div class="carta-m" data-k="${k}"><div class="in"><div class="f">❓</div><div class="v ${temImg(it, c.t) ? "com-img" : ""}">${peca(it, c.t)}</div></div></div>`).join("")}</div>`, d.titulo);
     el.querySelectorAll(".carta-m").forEach(cv => cv.onclick = () => {
       if (travado || cv.classList.contains("virada")) return;
       cv.classList.add("virada"); abertas.push(cv); som("clique");
@@ -184,17 +200,17 @@
     const d = it.dados, itens = embaralhar(d.itens.map((t, i) => ({ t, i })));
     const montada = [];
     const el = cartao(it, `<div class="enunciado">🔢 ${esc(d.titulo)}</div><p class="mini">Toque nos itens na ordem certa (do primeiro ao último).</p>
-      <div class="ordem-alvo" id="alvo"></div><div class="opcoes">${itens.map((o, k) => `<button class="op" data-k="${k}">${esc(o.t)}</button>`).join("")}</div>
+      <div class="ordem-alvo" id="alvo"></div><div class="opcoes">${itens.map((o, k) => `<button class="op op-linha" data-k="${k}">${peca(it, o.t)}</button>`).join("")}</div>
       <div style="margin-top:10px"><button class="btn peq branco" id="limpar">↺ Recomeçar</button></div>`, d.titulo + ". " + d.itens.join(", "));
     const alvo = $("#alvo", el);
-    const desenhar = () => alvo.innerHTML = montada.map((o, n) => `<div class="op sel">${n + 1}. ${esc(o.t)}</div>`).join("");
+    const desenhar = () => alvo.innerHTML = montada.map((o, n) => `<div class="op sel op-linha"><b>${n + 1}.</b> ${peca(it, o.t)}</div>`).join("");
     el.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
       montada.push(itens[+b.dataset.k]); b.classList.add("feito"); som("clique"); desenhar();
       if (montada.length === itens.length) {
         const ok = montada.every((o, n) => o.i === n);
         $("#limpar", el).remove();
         el.querySelectorAll("[data-k]").forEach(x => x.remove());
-        alvo.innerHTML = d.itens.map((t, n) => `<div class="op ${montada[n].i === n ? "certa" : "errada"}">${n + 1}. ${esc(t)}</div>`).join("");
+        alvo.innerHTML = d.itens.map((t, n) => `<div class="op op-linha ${montada[n].i === n ? "certa" : "errada"}"><b>${n + 1}.</b> ${peca(it, t)}</div>`).join("");
         fim(ok, (ok ? "Ordem perfeita! " : "Veja a ordem certa acima. ") + (d.explicacao || ""));
       }
     });
@@ -208,7 +224,7 @@
       <div class="item-vez" id="vez"></div>
       <div class="baus">${d.categorias.map((c, i) => `<button class="bau-cat" data-c="${i}" style="background:${coresBau[i]}">🧰 ${esc(c)}<span class="cont" id="cnt${i}">0 itens</span></button>`).join("")}</div>`, d.titulo + ". Categorias: " + d.categorias.join(", "));
     const vez = $("#vez", el);
-    const mostrar = () => { vez.textContent = itens[k].texto; vez.style.animation = "none"; vez.offsetHeight; vez.style.animation = ""; };
+    const mostrar = () => { vez.innerHTML = temImg(it, itens[k].texto) ? `${vis(it.visuais[itens[k].texto], "medio")}<span>${esc(itens[k].texto)}</span>` : esc(itens[k].texto); vez.style.animation = "none"; vez.offsetHeight; vez.style.animation = ""; };
     mostrar();
     el.querySelectorAll(".bau-cat").forEach(b => b.onclick = () => {
       if (k >= itens.length) return;
@@ -227,7 +243,7 @@
   R.flashcard = (it, fim) => {
     const d = it.dados;
     const el = cartao(it, `<div class="flash" id="fl"><div class="in">
-        <div class="f"><div style="font-size:56px">${esc(d.emoji || "🃏")}</div>${esc(d.frente)}<div class="dica">Pense na resposta… depois toque para virar!</div></div>
+        <div class="f">${it.visual ? `<div class="flash-img">${vis(it.visual, "medio")}</div>` : `<div style="font-size:56px">${esc(d.emoji || "🃏")}</div>`}${esc(d.frente)}<div class="dica">Pense na resposta… depois toque para virar!</div></div>
         <div class="v">${esc(d.verso)}</div></div></div>
       <div class="opcoes duas" id="auto" style="display:none"><button class="op" data-s="1">😎 Eu sabia!</button><button class="op" data-s="0">🤔 Preciso treinar</button></div>`, d.frente);
     $("#fl", el).onclick = () => { $("#fl", el).classList.add("virada"); $("#auto", el).style.display = "grid"; falar(d.verso); };

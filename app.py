@@ -11,6 +11,7 @@ from flask import (Flask, abort, flash, jsonify, redirect, render_template, requ
                    send_file, session, url_for)
 
 import gemini
+import imagens
 import missoes
 from conteudo_inicial import PROVAS
 from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, PaginaFoto, Prova,
@@ -155,6 +156,7 @@ with app.app_context():
         carregar_conteudo_inicial()
     elif Config.get("conteudo_versao") != VERSAO_CONTEUDO:
         sincronizar_conteudo()
+    imagens.registrar_todas()  # cadastra as ilustrações que faltam (não gera nada sozinho)
 
 # ---------------------------------------------------------------------------
 # Páginas do livro (fotos) — para o "Aquecimento do Herói"
@@ -460,6 +462,7 @@ def _pacote(itens_atividade, fases=None):
             pags[a.conteudo_id] = paginas_de(a.conteudo, cache)["fotos"]
         d["paginas"] = pags[a.conteudo_id]
         d["paginas_txt"] = a.conteudo.paginas
+        d.update(imagens.visuais_para(a))
         out.append(d)
     return out
 
@@ -614,6 +617,40 @@ def api_loja(item_id):
     return jsonify({"moedas": heroi.moedas, "itens": itens, "equipados": equip})
 
 
+# --------------------------- Ilustrações ------------------------------------
+@app.get("/ilustracao/<chave>.jpg")
+def ilustracao(chave):
+    from models import Imagem
+    img = Imagem.query.filter_by(chave=chave, status="ok").first()
+    if not img or not img.dados:
+        abort(404)
+    r = send_file(io.BytesIO(img.dados), mimetype=img.mime or "image/jpeg")
+    r.headers["Cache-Control"] = "public, max-age=604800"
+    return r
+
+
+@app.post("/pais/imagens/gerar")
+@precisa_pais
+def pais_imagens_gerar():
+    if request.form.get("refazer_falhas"):
+        imagens.refazer_falhas()
+    if request.form.get("tentar_gemini"):
+        Config.set("imagens_gemini_bloqueado", "")
+        db.session.commit()
+    imagens.registrar_todas()
+    if imagens.iniciar(app):
+        flash("Gerando as imagens em segundo plano. Pode continuar usando o app; o progresso aparece aqui.")
+    else:
+        flash("A geração de imagens já está em andamento.")
+    return redirect(url_for("pais") + "#imagens")
+
+
+@app.get("/pais/imagens/situacao")
+@precisa_pais
+def pais_imagens_situacao():
+    return jsonify(imagens.situacao())
+
+
 # ---------------------------------------------------------------------------
 # Painel dos pais
 # ---------------------------------------------------------------------------
@@ -641,7 +678,8 @@ def pais():
     return render_template("pais/painel.html", provas=provas, ultimas=ultimas, plano=missoes.plano_de_revisao,
                            gemini_ok=gemini.disponivel(), modelo=gemini.modelo(),
                            tamanho=missoes.tamanho_missao(), heroi=Heroi.query.first(),
-                           provisorias=Config.get("datas_provisorias") == "1", materias=list(MUNDOS.keys()))
+                           provisorias=Config.get("datas_provisorias") == "1", materias=list(MUNDOS.keys()),
+                           img=imagens.situacao())
 
 
 @app.post("/pais/config")

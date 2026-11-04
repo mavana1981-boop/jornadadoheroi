@@ -116,5 +116,52 @@
       </form>
     </div>
   </div>
+
+  <div class="card" id="imagens" style="margin-top:16px">
+    <h2>🖼️ Imagens das atividades</h2>
+    <p class="mini">Formas geométricas, réguas, balanças e jarras são desenhadas pelo próprio app. As demais ilustrações são geradas pelo Gemini
+      uma única vez e ficam guardadas. Se a chave do Gemini não puder gerar imagens, o app usa fotos livres da Wikipédia.</p>
+    <div class="img-status">
+      <div><b id="i-prontas">{{ img.prontas }}</b><span>prontas</span></div>
+      <div><b id="i-pend">{{ img.pendentes }}</b><span>na fila</span></div>
+      <div><b id="i-falhas">{{ img.falhas }}</b><span>com falha</span></div>
+    </div>
+    <div class="barra-pais"><i id="i-barra" style="width:{{ (100 * img.prontas / (img.total or 1))|round }}%"></i></div>
+    <p class="mini" id="i-linha">
+      {% if img.rodando %}⏳ Gerando agora… ({{ img.feitas_agora }} nesta rodada){% elif img.pendentes %}Faltam {{ img.pendentes }} imagens.{% else %}✅ Todas as imagens cadastradas estão prontas.{% endif %}
+      {% if img.gemini or img.wikipedia %} · Gemini: {{ img.gemini }} · Wikipédia: {{ img.wikipedia }}{% endif %}
+      {% if img.modelo %} · modelo {{ img.modelo }}{% endif %}
+    </p>
+    {% if img.bloqueado %}
+      <div class="aviso">A chave do Gemini não conseguiu gerar imagens, então o app está usando fotos da Wikipédia.
+        Se você ativar o faturamento no Google AI Studio, toque em "Tentar o Gemini de novo".<br><span class="mini">{{ img.bloqueado }}</span></div>
+    {% elif img.custo_estimado %}
+      <p class="mini">Custo estimado das imagens que faltam no Gemini: cerca de <b>US$ {{ '%.2f'|format(img.custo_estimado) }}</b> (cobrado na sua conta do Google AI Studio).</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('pais_imagens_gerar') }}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn verde peq" {{ 'disabled' if img.rodando or not img.pendentes }}>🎨 Gerar imagens que faltam</button>
+      {% if img.falhas %}<button class="btn peq branco" name="refazer_falhas" value="1">↻ Tentar de novo as que falharam</button>{% endif %}
+      {% if img.bloqueado %}<button class="btn peq branco" name="tentar_gemini" value="1">✨ Tentar o Gemini de novo</button>{% endif %}
+    </form>
+    {% if img.ultimas_falhas %}<details style="margin-top:8px"><summary class="mini">Últimas falhas</summary>
+      <ul class="mini">{% for f in img.ultimas_falhas %}<li>{{ f.spec }} — {{ f.erro }}</li>{% endfor %}</ul></details>{% endif %}
+  </div>
+  <script>
+  (() => {
+    let ativo = {{ 'true' if img.rodando else 'false' }};
+    if (!ativo) return;
+    const t = setInterval(async () => {
+      try {
+        const s = await (await fetch("{{ url_for('pais_imagens_situacao') }}")).json();
+        document.getElementById("i-prontas").textContent = s.prontas;
+        document.getElementById("i-pend").textContent = s.pendentes;
+        document.getElementById("i-falhas").textContent = s.falhas;
+        document.getElementById("i-barra").style.width = Math.round(100 * s.prontas / Math.max(1, s.total)) + "%";
+        document.getElementById("i-linha").textContent = s.rodando ? `⏳ Gerando agora… (${s.feitas_agora} nesta rodada)` : "✅ Rodada concluída.";
+        if (!s.rodando) { clearInterval(t); setTimeout(() => location.reload(), 1500); }
+      } catch (e) {}
+    }, 4000);
+  })();
+  </script>
 </div>
 {% endblock %}
