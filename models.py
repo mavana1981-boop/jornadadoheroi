@@ -21,6 +21,18 @@ MUNDOS = {
         "nome": "Vale da Natureza", "emoji": "🌱", "cor": "#1fa2ff", "cor2": "#12d8fa",
         "chefao": "Polvo da Poluição", "chefao_emoji": "🐙", "cenario": "💧🌦️🪴",
     },
+    "Geografia": {
+        "nome": "Reino do Município", "emoji": "🏰", "cor": "#9b5de5", "cor2": "#f15bb5",
+        "chefao": "Rei Consumista", "chefao_emoji": "👑", "cenario": "🏘️🚜♻️",
+    },
+    "História": {
+        "nome": "Castelo do Tempo", "emoji": "⏳", "cor": "#c77d3a", "cor2": "#f4a261",
+        "chefao": "Bruxa do Trabalho Infantil", "chefao_emoji": "🧙", "cenario": "🏮🚂🏛️",
+    },
+    "Inglês": {
+        "nome": "Ilha das Palavras Mágicas", "emoji": "🗽", "cor": "#e63946", "cor2": "#457b9d",
+        "chefao": "Pirata do Esquecimento", "chefao_emoji": "🏴‍☠️", "cenario": "🍎⚽🎨",
+    },
     "Geografia e História": {
         "nome": "Reino do Município", "emoji": "🏰", "cor": "#9b5de5", "cor2": "#f15bb5",
         "chefao": "Rei Consumista", "chefao_emoji": "👑", "cenario": "🏘️🚜🏭",
@@ -96,6 +108,12 @@ class Prova(db.Model):
     @property
     def mundo(self):
         return mundo_de(self.materia)
+
+    @property
+    def nome(self):
+        """Nome curto para exibir (ex.: 'Português B3')."""
+        t = (self.titulo or "").replace("Prova de ", "").strip()
+        return t or self.materia
 
     @property
     def dias_restantes(self):

@@ -1,8 +1,9 @@
 """Conteúdo pré-carregado a partir das páginas do livro (3º ano).
 
 Cada conteúdo traz um resumo (base para o Gemini criar mais atividades) e atividades prontas.
-As datas das provas são provisórias: ajuste no Painel dos Pais.
+As provas e datas seguem o Orientador de Estudos – Avaliações Globalizantes (3º trimestre/2026, 3º ano).
 """
+import copy
 
 
 def Q(pergunta, opcoes, correta, explicacao="", emoji=""):
@@ -45,7 +46,7 @@ def F(frente, verso, emoji=""):
     return ("flashcard", {"frente": frente, "verso": verso, "emoji": emoji})
 
 
-PROVAS = [
+_BANCO = [
     # =====================================================================
     {"materia": "Matemática", "titulo": "Prova de Matemática", "data": "2026-11-23", "conteudos": [
         {"titulo": "Sólidos geométricos: poliedros e corpos redondos", "emoji": "🧊", "paginas": "34-39",
@@ -529,5 +530,215 @@ PROVAS = [
              C("Degradação significa a ação de estragar, destruir ou perder a ___.", ["qualidade", "cor", "altura"], 0),
              F("O que são recursos não renováveis?", "Recursos que podem se esgotar, como carvão mineral, petróleo e diamante.", "⛏️"),
          ]},
+    ]},
+]
+
+
+# =========================================================================
+# Provas conforme o Orientador de Estudos (3º trimestre/2026)
+# =========================================================================
+_C = {c["titulo"]: c for p in _BANCO for c in p["conteudos"]}
+
+
+def _copia(titulo, **mudancas):
+    d = copy.deepcopy(_C[titulo])
+    d.update(mudancas)
+    return d
+
+
+_TRAB = _C["Trabalho e atividades econômicas do município"]["atividades"]
+
+_GEO_ATIVIDADES_ECONOMICAS = {
+    "titulo": "Atividades econômicas no campo e na cidade", "emoji": "🚜", "paginas": "201-203",
+    "resumo": "As atividades econômicas produzem o que usamos no dia a dia e é por meio delas que os empregos são gerados. "
+              "No campo: agricultura (arroz, feijão, milho, frutas), pecuária (criação de animais para leite, carne, couro e ovos) e agroindústria "
+              "(transforma produtos agrícolas em sucos, queijos e doces). Na cidade: comércio (farmácias, padarias, restaurantes, salões de beleza) e "
+              "indústria (fábricas de eletrodomésticos, carros e brinquedos). O turismo acontece tanto no campo quanto na cidade e gera empregos em hotéis e restaurantes. "
+              "Economia: conjunto de atividades de produção, distribuição e consumo de mercadorias. O campo e a cidade dependem um do outro.",
+    "atividades": [_TRAB[1], _TRAB[3], _TRAB[4], _TRAB[5], _TRAB[6],
+                   K("Campo ou cidade?", {"Mais comum no campo": ["🌾 Agricultura", "🐄 Pecuária", "🧀 Agroindústria"],
+                                          "Mais comum na cidade": ["🏪 Comércio", "🏭 Indústria", "💇 Salão de beleza"]}),
+                   VF("É por meio das atividades econômicas que os empregos são gerados.", True, "", "👷"),
+                   Q("Qual atividade acontece tanto no campo quanto na cidade?", ["Turismo", "Pecuária", "Agricultura", "Agroindústria"], 0,
+                     "Pessoas visitam paisagens bonitas, museus e festivais no campo e na cidade.", "🧳")],
+}
+
+_HIST_TRABALHO = {
+    "titulo": "Nossas ações transformam o município: trabalho remunerado e não remunerado", "emoji": "👷",
+    "paginas": "125-126", "antes": ["Trabalho e atividades econômicas do município"],
+    "resumo": "Trabalho é toda atividade realizada para atender às necessidades humanas: produzir mercadorias, oferecer serviços ou cuidar dos outros. "
+              "Trabalho remunerado: a pessoa recebe pagamento (salário), como médico, professor e pintor. "
+              "Não remunerado: sem pagamento, como cuidar da própria casa, ajudar a comunidade e o trabalho voluntário em hospitais ou cuidando de animais. "
+              "O trabalho está presente em todos os espaços do município e é fundamental para formá-lo: graças a ele foram construídos ruas, avenidas, prédios, praças e meios de transporte.",
+    "atividades": [_TRAB[0], _TRAB[2],
+                   VF("O trabalho foi fundamental para construir ruas, praças, prédios e meios de transporte do município.", True, "", "🏗️"),
+                   Q("O que aconteceria numa cidade sem pedreiros, coletores de lixo e médicos?",
+                     ["Muita coisa deixaria de ser feita", "Nada mudaria", "A cidade ficaria mais limpa", "As casas se construiriam sozinhas"], 0,
+                     "Sem o trabalho das pessoas, nada é feito na sociedade.", "🧱"),
+                   C("Cuidar da própria casa e ser voluntário são exemplos de trabalho ___.", ["não remunerado", "remunerado", "industrial"], 0),
+                   F("O que é trabalho?", "Toda atividade feita para atender às necessidades humanas: produzir, oferecer serviços ou cuidar dos outros.", "🛠️")],
+}
+
+_MAT_GRAFICOS = {
+    "titulo": "Gráficos com dinheiro", "emoji": "📊", "paginas": "183",
+    "resumo": "Num gráfico de barras, cada barra mostra uma quantidade: a barra mais alta é a maior quantidade e a mais baixa, a menor. "
+              "Sempre leia o título (do que fala o gráfico), os eixos (o que está sendo contado) e a fonte (de onde vieram os dados). "
+              "No gráfico das moedas do caixa de Ana, havia mais moedas de 1 real (8 moedas) e menos moedas de 25 centavos (2 moedas). "
+              "Para saber o valor total, multiplicamos a quantidade pelo valor de cada moeda: 8 moedas de 1 real = 8 reais; 2 moedas de 25 centavos = 50 centavos. 100 centavos = 1 real.",
+    "atividades": [
+        Q("No gráfico das moedas do caixa de Ana, qual moeda aparecia em MAIOR quantidade?",
+          ["1 real", "5 centavos", "25 centavos", "10 centavos"], 0, "A barra do 1 real era a mais alta: 8 moedas.", "📊"),
+        Q("E qual moeda aparecia em MENOR quantidade?", ["25 centavos", "1 real", "50 centavos", "5 centavos"], 0,
+          "A barra dos 25 centavos era a mais baixa: 2 moedas.", "📉"),
+        N("Ana tinha 8 moedas de 1 real. Quantos reais são?", 8, "reais", "8 × 1 = 8 reais.", "🪙"),
+        N("E 2 moedas de 25 centavos dão quantos centavos?", 50, "centavos", "25 + 25 = 50 centavos.", "🪙"),
+        N("Quantas moedas de 50 centavos formam 2 reais?", 4, "moedas", "2 moedas de 50 centavos = 1 real; para 2 reais, 4 moedas.", "💰"),
+        VF("Num gráfico de barras, a barra mais alta mostra a maior quantidade.", True, "", "📈"),
+        C("Para saber do que fala um gráfico, lemos primeiro o seu ___.", ["título", "troco", "perímetro"], 0),
+        C("100 centavos equivalem a ___.", ["1 real", "10 reais", "50 centavos"], 0),
+        F("O que é a fonte de um gráfico?", "É de onde vieram os dados (por exemplo, o contador de moedas).", "🔎"),
+    ],
+}
+
+_MAT_METADE = {
+    "titulo": "Metade e terça parte", "emoji": "🍕", "paginas": "112, 118-119",
+    "resumo": "Metade é dividir em 2 partes iguais (÷ 2): metade de 10 é 5; meio metro é metade de 100 cm, ou seja, 50 cm. "
+              "Terça parte é dividir em 3 partes iguais (÷ 3): a terça parte de 9 é 3. Pedro gastava 60 L de água e quer gastar só a terça parte: 60 ÷ 3 = 20 L. "
+              "Dobro e metade são operações opostas: o dobro de 5 é 10 e a metade de 10 é 5. Triplo e terça parte também: o triplo de 4 é 12 e a terça parte de 12 é 4.",
+    "atividades": [
+        N("Qual é a metade de 10?", 5, "", "10 ÷ 2 = 5.", "✂️"),
+        N("Qual é a metade de 50?", 25, "", "50 ÷ 2 = 25.", "🍰"),
+        N("Qual é a terça parte de 9?", 3, "", "9 ÷ 3 = 3.", "🍕"),
+        N("Qual é a terça parte de 12?", 4, "", "12 ÷ 3 = 4.", "🍪"),
+        N("Pedro gastava 60 litros de água para lavar a louça e quer gastar só a terça parte. Quantos litros vai gastar?", 20, "litros",
+          "60 ÷ 3 = 20 litros.", "🚰"),
+        N("Gustavo tem 1 000 mL de água e vai dividir em partes iguais entre ele e três amigos. Quantos mL para cada um?", 250, "mL",
+          "São 4 pessoas: 1 000 ÷ 4 = 250 mL.", "💧"),
+        C("A metade de 1 metro é ___ centímetros.", ["50", "25", "100"], 0, "100 ÷ 2 = 50 cm."),
+        L("Faça as contas com o número 6", [["Dobro de 6", "12"], ["Triplo de 6", "18"], ["Metade de 6", "3"], ["Terça parte de 6", "2"]]),
+        Q("Achar a terça parte é dividir em…", ["3 partes iguais", "2 partes iguais", "4 partes iguais", "10 partes iguais"], 0, "", "➗"),
+        F("Dobro × metade", "O dobro multiplica por 2; a metade divide por 2. Uma desfaz a outra!", "🔁"),
+    ],
+}
+
+_MAT_INSTRUMENTOS = {
+    "titulo": "Medidas não padronizadas e instrumentos de medida", "emoji": "👣", "paginas": "244-246",
+    "resumo": "Antigamente as pessoas usavam o corpo para medir: palmo da mão, pé e passos. Jaqueline e André mediram a distância entre duas árvores com os pés "
+              "e encontraram resultados diferentes (8 e 6 pés), porque cada pessoa tem um tamanho de pé diferente. São medidas NÃO padronizadas. "
+              "Para ter uma medida exata, usamos instrumentos e unidades padronizadas: régua, fita métrica e trena medem comprimento; "
+              "a balança mede a massa; o copo medidor ou a jarra graduada medem a capacidade. Na régua, a medição começa no zero.",
+    "atividades": [
+        Q("Por que Jaqueline e André acharam números diferentes medindo com os pés?",
+          ["Porque cada pessoa tem um pé de tamanho diferente", "Porque as árvores se mexeram", "Porque um deles contou errado de propósito", "Porque mediram em dias diferentes"], 0,
+          "O pé não é uma medida padronizada.", "👣"),
+        K("Qual instrumento usar?", {"Comprimento": ["📏 Régua", "🎗️ Fita métrica", "📐 Trena"],
+                                     "Massa": ["⚖️ Balança"], "Capacidade": ["🥛 Copo medidor", "🫗 Jarra graduada"]}),
+        VF("Palmo, pé e passo são medidas padronizadas, iguais para todas as pessoas.", False, "Elas mudam de uma pessoa para outra.", "✋"),
+        L("O que mede?", [["Régua", "Comprimento"], ["Balança", "Massa"], ["Copo medidor", "Capacidade"]]),
+        Q("A altura da parede da sala mede mais ou menos que 1 metro?", ["Mais", "Menos"], 0, "Uma parede é bem mais alta que 1 metro.", "🧱"),
+        Q("O comprimento de um celular mede mais ou menos que 1 metro?", ["Menos", "Mais"], 0, "Um celular tem poucos centímetros.", "📱"),
+        N("Na régua, a caneta vai do 0 até o 14. Quantos centímetros ela tem?", 14, "cm", "Começando no zero, a medida é 14 cm.", "🖊️"),
+        F("Como medir a distância exata entre duas árvores?", "Usando um instrumento padronizado, como a trena ou a fita métrica.", "🌳"),
+    ],
+}
+
+_ING_HOBBIES = {
+    "titulo": "Unit 6 – Hobbies e Simple Present (he/she)", "emoji": "🎨", "paginas": "68-73 (Unit 6)",
+    "resumo": "Vocabulário de hobbies: play soccer (jogar futebol), ride a bike (andar de bicicleta), read books (ler livros), draw (desenhar), dance (dançar), "
+              "sing (cantar), swim (nadar), play video games (jogar videogame), watch TV (assistir TV), cook (cozinhar), skate (andar de skate). "
+              "Simple Present: com I, you, we, they o verbo fica igual (I play, they swim). Com he, she, it o verbo ganha -s (he plays, she dances, it swims); "
+              "alguns ganham -es (watch → watches, go → goes). Perguntas: Do you like…? Yes, I do. / No, I don't. Does he/she like…? Yes, he does. / No, she doesn't. "
+              "Negativa: I don't play. She doesn't swim (com doesn't o verbo volta sem -s).",
+    "atividades": [
+        L("Hobby em inglês", [["⚽ play soccer", "jogar futebol"], ["🚲 ride a bike", "andar de bicicleta"], ["📚 read books", "ler livros"],
+                              ["🎨 draw", "desenhar"], ["🏊 swim", "nadar"]]),
+        M("Memória dos hobbies", [["dance", "💃 dançar"], ["sing", "🎤 cantar"], ["cook", "🍳 cozinhar"], ["watch TV", "📺 assistir TV"],
+                                  ["skate", "🛹 andar de skate"], ["play video games", "🎮 jogar videogame"]]),
+        C("She ___ soccer every day.", ["plays", "play", "playing"], 0, "Com she, o verbo ganha -s."),
+        C("I ___ books at night.", ["read", "reads", "reading"], 0, "Com I, o verbo fica igual."),
+        C("He ___ TV after school.", ["watches", "watch", "watchs"], 0, "Watch ganha -es: watches."),
+        C("___ he like pizza?", ["Does", "Do", "Is"], 0, "Com he/she usamos Does."),
+        C("___ you like music?", ["Do", "Does", "Are"], 0, "Com you usamos Do."),
+        Q("Does she dance? — Yes, she ___.", ["does", "do", "dances"], 0, "Resposta curta: Yes, she does.", "💃"),
+        Q("Do they swim? — No, they ___.", ["don't", "doesn't", "aren't"], 0, "Resposta curta: No, they don't.", "🏊"),
+        VF("A frase “He play video games.” está correta.", False, "O certo é “He plays video games.”", "🎮"),
+        K("O verbo fica igual ou ganha -s?", {"I / You / We / They": ["play", "draw", "swim"], "He / She / It": ["plays", "draws", "swims"]}),
+        F("Qual é a regra do he/she/it no Simple Present?", "O verbo ganha -s ou -es: he plays, she watches. Na pergunta usamos Does.", "🔤"),
+    ],
+}
+
+_ING_FRUTAS = {
+    "titulo": "Unit 7 – Fruits, vegetables, there are/aren't e quantifiers", "emoji": "🍎", "paginas": "80-85 (Unit 7)",
+    "resumo": "Frutas (fruits): apple (maçã), banana, orange (laranja), grapes (uvas), strawberry (morango), watermelon (melancia), pineapple (abacaxi). "
+              "Verduras e legumes (vegetables): carrot (cenoura), tomato (tomate), lettuce (alface), potato (batata), broccoli (brócolis), onion (cebola). "
+              "There are = há/existem (plural): There are some apples. There aren't = não há: There aren't any bananas. Pergunta: Are there any carrots? Yes, there are. / No, there aren't. "
+              "Quantifiers: some (alguns) nas frases afirmativas; any nas negativas e perguntas; lots of / a lot of = muitos (There are lots of grapes).",
+    "atividades": [
+        L("Frutas", [["🍎 apple", "maçã"], ["🍊 orange", "laranja"], ["🍇 grapes", "uvas"], ["🍓 strawberry", "morango"], ["🍉 watermelon", "melancia"]]),
+        M("Memória das verduras", [["carrot", "🥕 cenoura"], ["tomato", "🍅 tomate"], ["lettuce", "🥬 alface"], ["potato", "🥔 batata"],
+                                   ["broccoli", "🥦 brócolis"], ["onion", "🧅 cebola"]]),
+        K("Fruit or vegetable?", {"Fruits": ["🍌 banana", "🍍 pineapple", "🍓 strawberry"], "Vegetables": ["🥕 carrot", "🥬 lettuce", "🥔 potato"]}),
+        C("There are ___ apples on the table.", ["some", "any", "a"], 0, "Afirmativa: some."),
+        C("There aren't ___ bananas.", ["any", "some", "lots"], 0, "Negativa: any."),
+        C("Are there ___ carrots?", ["any", "some", "a lot"], 0, "Pergunta: any."),
+        C("There are ___ grapes in the basket. (muitas)", ["lots of", "any", "an"], 0, "Lots of / a lot of = muitos."),
+        Q("Are there any tomatoes? — Yes, there ___.", ["are", "is", "do"], 0, "Yes, there are.", "🍅"),
+        Q("O que significa “There aren't any onions”?", ["Não há cebolas", "Há muitas cebolas", "Há algumas cebolas", "Eu gosto de cebolas"], 0, "", "🧅"),
+        VF("“A lot of” e “lots of” significam “muitos”.", True, "", "🧺"),
+        F("Quando usar some e any?", "Some nas frases afirmativas; any nas negativas e nas perguntas.", "🔤"),
+    ],
+}
+
+
+PROVAS = [
+    {"materia": "Geografia", "titulo": "Prova de Geografia", "data": "2026-11-12", "conteudos": [
+        _copia("Recursos naturais e a degradação do solo"),
+        _GEO_ATIVIDADES_ECONOMICAS,
+        _copia("Desemprego"),
+        _copia("Consumo, consumismo, resíduos e reciclagem"),
+    ]},
+    {"materia": "História", "titulo": "Prova de História", "data": "2026-11-13", "conteudos": [
+        _HIST_TRABALHO,
+        _copia("O trabalho muda com o tempo"),
+        _copia("Direitos das crianças e trabalho infantil", paginas="194-199"),
+        _copia("Espaços de lazer: públicos e privados", paginas="266-267"),
+    ]},
+    {"materia": "Inglês", "titulo": "Prova de Inglês", "data": "2026-11-16", "conteudos": [
+        _ING_HOBBIES,
+        _ING_FRUTAS,
+    ]},
+    {"materia": "Ciências", "titulo": "Prova de Ciências", "data": "2026-11-17", "conteudos": [
+        _copia("O solo: formação e composição", paginas="72, 73, 75"),
+        _copia("Usos do solo, erosão e proteção", paginas="73, 210-214"),
+        _copia("A água no planeta e a água potável", paginas="139, 142"),
+        _copia("Ciclo da água e estados físicos"),
+        _copia("Alimentos: cadeia produtiva e alimentação saudável"),
+        _copia("Plantas: usos e partes", paginas="212"),
+    ]},
+    {"materia": "Português", "titulo": "Prova de Português B3", "data": "2026-11-18", "conteudos": [
+        _copia("Onomatopeias e histórias em quadrinhos"),
+        _copia("Pronomes demonstrativos"),
+        _copia("Adjetivos e concordância", paginas="228-231"),
+    ]},
+    {"materia": "Português", "titulo": "Prova de Português A3", "data": "2026-11-23", "conteudos": [
+        _copia("Onomatopeias e histórias em quadrinhos"),
+        _copia("Gênero diário (pessoal e de viagem)", paginas="222-224, 226-227"),
+    ]},
+    {"materia": "Matemática", "titulo": "Prova de Matemática A3", "data": "2026-11-24", "conteudos": [
+        _copia("Sólidos geométricos: poliedros e corpos redondos", paginas="34-36, 39"),
+        _copia("Faces, vértices, arestas e planificação"),
+        _copia("Medidas de comprimento: metro, centímetro, milímetro e quilômetro", paginas="44, 45, 47-49"),
+        _copia("Perímetro"),
+        _copia("Sistema monetário: cédulas e moedas do Real"),
+        _copia("Troco, pagamento à vista e a prazo"),
+        _MAT_GRAFICOS,
+    ]},
+    {"materia": "Matemática", "titulo": "Prova de Matemática B3", "data": "2026-11-25", "conteudos": [
+        _copia("Medidas de massa: grama, quilograma e miligrama", paginas="103, 105"),
+        _copia("Medidas de capacidade: litro e mililitro", paginas="108-112, 118-120, 251-254"),
+        _copia("Dobro, triplo e divisão"),
+        _MAT_METADE,
+        _copia("Medidas de comprimento: metro, centímetro, milímetro e quilômetro", paginas="244-248, 256-261"),
+        _MAT_INSTRUMENTOS,
     ]},
 ]

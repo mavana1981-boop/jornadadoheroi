@@ -23,7 +23,7 @@
         {% for p in provas %}
         <tr>
           <td>{{ p.mundo.emoji }} {{ p.mundo.nome }}</td>
-          <td><b>{{ p.materia }}</b><div class="mini">{{ p.conteudos|length }} conteúdos</div></td>
+          <td><b>{{ p.nome }}</b><div class="mini">{{ p.conteudos|length }} conteúdos</div></td>
           <td><input type="date" name="data_{{ p.id }}" value="{{ p.data.isoformat() if p.data else '' }}" style="max-width:170px"></td>
           <td><input type="checkbox" name="ativa_{{ p.id }}" {{ 'checked' if p.ativa }}></td>
           <td>{{ p.dominio }}%</td>
@@ -50,7 +50,7 @@
   {# ---------------- Conteúdos por prova ---------------- #}
   {% for p in provas %}
   <div class="card" style="margin-bottom:16px">
-    <h2>{{ p.mundo.emoji }} {{ p.materia }} <span class="mini">— {{ p.data|data_br }}{% if p.dias_restantes is not none and p.dias_restantes >= 0 %} · faltam {{ p.dias_restantes }} dias{% endif %}</span></h2>
+    <h2>{{ p.mundo.emoji }} {{ p.nome }} <span class="mini">— {{ p.data|data_br }}{% if p.dias_restantes is not none and p.dias_restantes >= 0 %} · faltam {{ p.dias_restantes }} dias{% endif %}</span></h2>
     <table class="tabela" style="margin-top:8px">
       <tr><th>Conteúdo</th><th>Atividades</th><th>Domínio</th><th>Próxima revisão</th><th>Acertos</th></tr>
       {% for linha in plano(p) %}{% set c = linha.c %}

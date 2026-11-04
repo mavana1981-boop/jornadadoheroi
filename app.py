@@ -59,29 +59,100 @@ CONQUISTAS = [
 # ---------------------------------------------------------------------------
 # Inicialização
 # ---------------------------------------------------------------------------
+VERSAO_CONTEUDO = "2-orientador-3tri"
+
+
+def _nova_atividade(cont, tipo, dados):
+    v = gemini.validar(tipo, dados)
+    if v:
+        db.session.add(Atividade(conteudo=cont, tipo=v["tipo"], dados=json.dumps(v["dados"], ensure_ascii=False),
+                                 origem="livro"))
+
+
 def carregar_conteudo_inicial():
+    """Banco vazio: cria as provas do Orientador de Estudos com todo o conteúdo."""
     from datetime import date as d_
-    for ordem_p, p in enumerate(PROVAS):
-        prova = Prova(materia=p["materia"], titulo=p["titulo"],
-                      data=d_.fromisoformat(p["data"]) if p.get("data") else None)
+    for p in PROVAS:
+        prova = Prova(materia=p["materia"], titulo=p["titulo"], data=d_.fromisoformat(p["data"]))
         db.session.add(prova)
         for ordem, c in enumerate(p["conteudos"]):
             cont = Conteudo(prova=prova, titulo=c["titulo"], resumo=c["resumo"], paginas=c.get("paginas", ""),
                             emoji=c.get("emoji", "📘"), ordem=ordem)
             db.session.add(cont)
             for tipo, dados in c["atividades"]:
-                v = gemini.validar(tipo, dados)
-                if v:
-                    db.session.add(Atividade(conteudo=cont, tipo=v["tipo"], dados=json.dumps(v["dados"], ensure_ascii=False),
-                                             origem="livro"))
-    Config.set("datas_provisorias", "1")
+                _nova_atividade(cont, tipo, dados)
+    Config.set("datas_provisorias", "0")
+    Config.set("conteudo_versao", VERSAO_CONTEUDO)
     db.session.commit()
+
+
+def sincronizar_conteudo():
+    """Banco já existente: reorganiza nas provas do Orientador sem perder o progresso.
+
+    Conteúdos e atividades já existentes são reaproveitados (mantêm acertos, erros e revisões);
+    só o que é novo é criado. Provas antigas que ficarem vazias são removidas.
+    """
+    from datetime import date as d_
+    # atividades do livro já existentes, por (tipo, dados) — serão movidas, não recriadas
+    pool = {}
+    for a in Atividade.query.filter_by(origem="livro").all():
+        pool.setdefault((a.tipo, a.dados), []).append(a)
+    usados = set()
+    titulos_novos = {p["titulo"] for p in PROVAS}
+    for p in PROVAS:
+        prova = Prova.query.filter_by(titulo=p["titulo"]).first()
+        if not prova:
+            prova = Prova(titulo=p["titulo"], materia=p["materia"])
+            db.session.add(prova)
+        prova.materia = p["materia"]
+        prova.data = d_.fromisoformat(p["data"])
+        prova.ativa = True
+        for ordem, c in enumerate(p["conteudos"]):
+            nomes = [c["titulo"]] + c.get("antes", [])
+            cont = next((x for x in Conteudo.query.filter(Conteudo.titulo.in_(nomes)).order_by(Conteudo.id).all()
+                         if x.id not in usados), None)
+            if not cont:
+                cont = Conteudo()
+                db.session.add(cont)
+            cont.prova = prova
+            cont.titulo, cont.resumo = c["titulo"], c["resumo"]
+            cont.paginas, cont.emoji, cont.ordem = c.get("paginas", ""), c.get("emoji", "📘"), ordem
+            db.session.flush()
+            usados.add(cont.id)
+            for tipo, dados in c["atividades"]:
+                v = gemini.validar(tipo, dados)
+                if not v:
+                    continue
+                chave = (v["tipo"], json.dumps(v["dados"], ensure_ascii=False))
+                if pool.get(chave):
+                    pool[chave].pop(0).conteudo = cont
+                else:
+                    db.session.add(Atividade(conteudo=cont, tipo=chave[0], dados=chave[1], origem="livro"))
+    db.session.flush()
+    for prova in Prova.query.all():
+        for c in list(prova.conteudos):
+            if c.id not in usados and not c.atividades:
+                db.session.delete(c)
+    db.session.flush()
+    for prova in Prova.query.all():
+        if prova.titulo not in titulos_novos and not prova.conteudos:
+            db.session.delete(prova)
+    Config.set("datas_provisorias", "0")
+    Config.set("conteudo_versao", VERSAO_CONTEUDO)
+    db.session.commit()
+    m = Missao.query.filter_by(data=date.today()).first()
+    if m and m.status != "concluida":
+        Resposta.query.filter_by(missao_id=m.id).delete()
+        db.session.delete(m)
+        db.session.commit()
 
 
 with app.app_context():
     db.create_all()
     if not Prova.query.first():
         carregar_conteudo_inicial()
+    elif Config.get("conteudo_versao") != VERSAO_CONTEUDO:
+        sincronizar_conteudo()
 
 
 @app.context_processor

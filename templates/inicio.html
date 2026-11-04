@@ -50,7 +50,7 @@
           {% elif p.dias_restantes == 1 %}🔥 prova amanhã!{% elif p.dias_restantes == 0 %}⚔️ prova hoje!{% else %}✅ prova feita{% endif %}
         </span>
         <h3>{{ m.emoji }} {{ m.nome }}</h3>
-        <div style="font-weight:700">{{ p.materia }} · {{ p.conteudos|length }} conteúdos</div>
+        <div style="font-weight:700">{{ p.nome }} · {{ p.conteudos|length }} conteúdos</div>
         <div class="chefe">{{ m.chefao_emoji }} {{ m.chefao }} — vida: {{ 100 - p.dominio }}%</div>
         <div class="hp"><i style="width:{{ 100 - p.dominio }}%"></i></div>
       </a>
