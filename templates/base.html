@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Jornada">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-pagina="{{ request.endpoint|replace('_', '-') if request.endpoint else '' }}">
   {% if not self.body_class() %}<div class="estrelas-bg"></div>{% endif %}
   <main>
     {% with msgs = get_flashed_messages() %}
@@ -25,6 +25,7 @@
     {% block conteudo %}{% endblock %}
   </main>
   <script src="{{ url_for('static', filename='js/sons.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/copia.js') }}"></script>
   {% block scripts %}{% endblock %}
   <div class="instalar-folha" id="instalar-folha" hidden>
     <div class="if-caixa">

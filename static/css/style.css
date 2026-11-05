@@ -429,3 +429,9 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 /* ---------- missão adiantada ---------- */
 .selo-adiantada{display:inline-block;background:#22c55e;color:#fff;font-weight:800;border-radius:999px;padding:4px 14px;margin-bottom:10px;border:3px solid #fff}
 .no-dia.liberada .nd-bola{border-color:#22c55e;animation:pulsa 1.4s infinite}
+
+/* ---------- recuperar progresso ---------- */
+.recuperar{display:flex;gap:12px;align-items:center;background:#fff;color:var(--ink);border:4px solid #22c55e;border-radius:var(--raio);
+  padding:12px 14px;margin:10px 0 16px;box-shadow:var(--sombra)}
+.recuperar b{display:block;font-size:17px}
+.recuperar small{display:block;color:var(--muted);font-weight:700;margin:2px 0 8px}

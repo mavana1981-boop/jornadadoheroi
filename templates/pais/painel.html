@@ -117,6 +117,46 @@
     </div>
   </div>
 
+
+  <div class="card" id="dados" style="margin-top:16px">
+    <h2>💾 Dados e backup</h2>
+    {% if tipo_banco == 'temporario' %}
+      <div class="aviso" style="background:#fee2e2;border-color:#ef4444">
+        <b>⚠️ O banco de dados deste app é temporário.</b> Ele fica dentro do servidor e é <b>apagado a cada atualização</b>
+        do app (pontos, missões, conquistas, fotos e imagens geradas). Para guardar de vez, no Railway:<br>
+        <b>Opção 1 (recomendada):</b> no projeto, toque em <b>+ New → Database → PostgreSQL</b>. Depois, no serviço do app,
+        em <b>Variables</b>, crie <code>DATABASE_URL</code> com o valor <code>${{ '{{' }}Postgres.DATABASE_URL{{ '}}' }}</code>.<br>
+        <b>Opção 2:</b> no serviço do app, <b>Settings → Volumes → New Volume</b>, com o caminho <code>/data</code>. O app passa a guardar o banco lá sozinho.
+      </div>
+    {% elif tipo_banco == 'volume' %}
+      <p class="mini">✅ Banco guardado num Volume do Railway: o progresso não se perde nas atualizações.</p>
+    {% else %}
+      <p class="mini">✅ Banco Postgres do Railway: o progresso não se perde nas atualizações.</p>
+    {% endif %}
+    <p class="mini">O app também guarda uma cópia do progresso no celular do herói. Se o banco for apagado, a tela de criar
+      herói oferece "Recuperar meu progresso".</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+      <a class="btn roxo peq" href="{{ url_for('pais_backup') }}">⬇️ Baixar backup</a>
+    </div>
+    <form method="post" action="{{ url_for('pais_backup_restaurar') }}" enctype="multipart/form-data"
+          onsubmit="return confirm('Restaurar este backup? O progresso atual será substituído pelo do arquivo.')"
+          class="grid g2" style="align-items:end">
+      <div><label>Restaurar de um arquivo de backup</label><input type="file" name="arquivo" accept=".json,application/json" required></div>
+      <div><button class="btn peq branco">⬆️ Restaurar</button></div>
+    </form>
+    {% if heroi %}
+    <details style="margin-top:12px"><summary><b>✏️ Ajustar pontos de {{ heroi.nome }}</b> <span class="mini">(para devolver pontos perdidos)</span></summary>
+      <form method="post" action="{{ url_for('pais_heroi_ajustar') }}" class="grid g3" style="align-items:end;margin-top:8px">
+        <div><label>⭐ XP</label><input type="number" name="xp" min="0" value="{{ heroi.xp }}"></div>
+        <div><label>🪙 Moedas</label><input type="number" name="moedas" min="0" value="{{ heroi.moedas }}"></div>
+        <div><label>🔥 Dias seguidos</label><input type="number" name="streak" min="0" value="{{ heroi.streak }}"></div>
+        <div><button class="btn verde peq">Salvar</button></div>
+      </form>
+      <p class="mini">Cada nível tem 300 XP (nível 3 = 600 XP). As conquistas de nível e de dias seguidos voltam com estes valores;
+        as de missões e acertos voltam conforme ele joga.</p>
+    </details>
+    {% endif %}
+  </div>
   <div class="card" id="imagens" style="margin-top:16px">
     <h2>🖼️ Imagens das atividades</h2>
     <p class="mini">Formas geométricas, réguas, balanças e jarras são desenhadas pelo próprio app. As demais ilustrações são geradas pelo Gemini

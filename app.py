@@ -11,6 +11,7 @@ from flask import (Flask, abort, flash, jsonify, redirect, render_template, requ
                    send_file, session, url_for)
 
 import gemini
+import backup
 import imagens
 import relogio
 import missoes
@@ -21,7 +22,18 @@ from models import (MUNDOS, TIPOS, Atividade, Config, Conteudo, Heroi, Missao, P
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "troque-esta-chave")
-url_db = os.environ.get("DATABASE_URL", "sqlite:///jornada.db")
+# Banco de dados:
+# - DATABASE_URL (Postgres do Railway): permanente;
+# - sem ela, mas com um Volume do Railway (RAILWAY_VOLUME_MOUNT_PATH): SQLite no volume, permanente;
+# - sem nenhum dos dois: SQLite dentro do servidor — é APAGADO a cada atualização do app.
+_volume = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.environ.get("PASTA_DADOS")
+if os.environ.get("DATABASE_URL"):
+    url_db, TIPO_BANCO = os.environ["DATABASE_URL"], "postgres"
+elif _volume:
+    os.makedirs(_volume, exist_ok=True)
+    url_db, TIPO_BANCO = "sqlite:///" + os.path.join(_volume, "jornada.db"), "volume"
+else:
+    url_db, TIPO_BANCO = "sqlite:///jornada.db", "temporario"
 if url_db.startswith("postgres://"):
     url_db = url_db.replace("postgres://", "postgresql://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = url_db
@@ -669,6 +681,73 @@ def api_loja(item_id):
     return jsonify({"moedas": heroi.moedas, "itens": itens, "equipados": equip})
 
 
+# --------------------------- Backup do progresso ----------------------------
+@app.get("/api/backup")
+def api_backup():
+    """Cópia do progresso, guardada também no celular (recupera tudo se o banco for apagado)."""
+    b = backup.exportar()
+    return (jsonify(b), 200) if b else (jsonify({"erro": "sem herói"}), 404)
+
+
+@app.post("/api/restaurar-local")
+def api_restaurar_local():
+    """Restaura a cópia guardada no celular, só se ela tiver MAIS progresso que o banco atual
+    (banco novo/apagado). Nunca troca um progresso maior por um menor."""
+    b = request.get_json(force=True, silent=True) or {}
+    if not backup.validar(b):
+        return jsonify({"erro": "Cópia inválida."}), 400
+    h = Heroi.query.first()
+    r = backup.resumo(b)
+    if h:
+        feitas = Missao.query.filter_by(status="concluida").count()
+        if not (r["xp"] > h.xp and r["missoes"] >= feitas):
+            return jsonify({"erro": "O progresso atual já é maior que o da cópia."}), 409
+    return jsonify(backup.restaurar(b))
+
+
+@app.get("/pais/backup")
+@precisa_pais
+def pais_backup():
+    b = backup.exportar()
+    if not b:
+        flash("Ainda não há herói para salvar.")
+        return redirect(url_for("pais"))
+    nome = f"jornada-backup-{relogio.agora().strftime('%Y-%m-%d-%Hh%M')}.json"
+    r = app.response_class(json.dumps(b, ensure_ascii=False, indent=1), mimetype="application/json")
+    r.headers["Content-Disposition"] = f'attachment; filename="{nome}"'
+    return r
+
+
+@app.post("/pais/backup/restaurar")
+@precisa_pais
+def pais_backup_restaurar():
+    f = request.files.get("arquivo")
+    try:
+        b = json.loads(f.read().decode("utf-8")) if f else None
+        r = backup.restaurar(b)
+        flash(f"Progresso de {r['nome']} restaurado: {r['xp']} XP, {r['moedas']} moedas, {r['missoes']} missões.")
+    except Exception as e:  # noqa: BLE001
+        db.session.rollback()
+        flash(f"Não consegui restaurar: {e}")
+    return redirect(url_for("pais") + "#dados")
+
+
+@app.post("/pais/heroi/ajustar")
+@precisa_pais
+def pais_heroi_ajustar():
+    h = Heroi.query.first()
+    if h:
+        for campo in ("xp", "moedas", "streak"):
+            v = request.form.get(campo, "").strip()
+            if v.isdigit():
+                setattr(h, campo, int(v))
+        if request.form.get("streak", "").strip().isdigit():
+            h.ultimo_dia = relogio.hoje()
+        db.session.commit()
+        flash(f"Pontos de {h.nome} ajustados.")
+    return redirect(url_for("pais") + "#dados")
+
+
 # --------------------------- Ilustrações ------------------------------------
 # --------------------------- App instalável (PWA) ----------------------------
 @app.get("/manifest.webmanifest")
@@ -753,7 +832,7 @@ def pais():
                            gemini_ok=gemini.disponivel(), modelo=gemini.modelo(),
                            tamanho=missoes.tamanho_missao(), heroi=Heroi.query.first(),
                            provisorias=Config.get("datas_provisorias") == "1", materias=list(MUNDOS.keys()),
-                           img=imagens.situacao())
+                           img=imagens.situacao(), tipo_banco=TIPO_BANCO)
 
 
 @app.post("/pais/config")
