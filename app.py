@@ -171,6 +171,7 @@ with app.app_context():
     elif Config.get("conteudo_versao") != VERSAO_CONTEUDO:
         sincronizar_conteudo()
     imagens.registrar_todas()  # cadastra as ilustrações que faltam (não gera nada sozinho)
+    missoes.corrigir_fuso_antigo()
     resumos.gerar_em_segundo_plano(app)  # Resumo do Herói de cada conteúdo (texto, custo mínimo)
 
 # ---------------------------------------------------------------------------
@@ -344,14 +345,19 @@ def inicio():
     heroi = Heroi.query.first()
     provas = Prova.query.filter_by(ativa=True).order_by(Prova.data).all()
     hoje = relogio.hoje()
-    missao = Missao.query.filter_by(data=hoje).first()
-    tem_futuras = bool(missoes.provas_futuras(hoje))
     ctx = contexto_jornada()
-    missao = Missao.query.filter_by(data=hoje).first()
+    dia = _dia_pedido()
+    inicio_nav, fim_nav = missoes.limites_navegacao(hoje)
+    tem_futuras = bool(missoes.provas_futuras(dia))
+    missao = Missao.query.filter_by(data=dia).first()
+    if not missao and tem_futuras and dia >= hoje:
+        missao = missoes.gerar_missao(dia)
     prox = missoes.proxima_data(hoje)
     return render_template("inicio.html", heroi=heroi, provas=provas, missao=missao,
                            tem_futuras=tem_futuras, conquistas=conquistas_de(heroi),
-                           assuntos_hoje=missoes.assuntos(missao), proxima_dia=prox, **ctx)
+                           assuntos_hoje=missoes.assuntos(missao), proxima_dia=prox, dia=dia,
+                           dia_ant=dia - timedelta(days=1) if dia > inicio_nav else None,
+                           dia_seg=dia + timedelta(days=1) if dia < fim_nav else None, **ctx)
 
 
 @app.route("/mundo/<int:prova_id>")
@@ -362,13 +368,14 @@ def mundo(prova_id):
 
 
 def _dia_pedido():
-    """Dia da missão pedido na URL (?dia=AAAA-MM-DD). Só vale hoje ou dias futuros; padrão: hoje."""
+    """Dia da missão pedido na URL (?dia=AAAA-MM-DD), dentro da trilha; padrão: hoje."""
     hoje = relogio.hoje()
     try:
         d = date.fromisoformat(request.args.get("dia", ""))
     except ValueError:
         return hoje
-    return d if d >= hoje else hoje
+    inicio, fim = missoes.limites_navegacao(hoje)
+    return min(max(d, inicio), fim) if d != hoje else hoje
 
 
 @app.route("/missao")
@@ -547,11 +554,11 @@ def api_missao_itens():
     pares = [(mapa[i["atividade_id"]], i["fase"]) for i in m.lista_itens() if i["atividade_id"] in mapa]
     pares.sort(key=lambda x: x[1])
     heroi = Heroi.query.first()
-    alvo = missoes.provas_futuras(dia)
+    alvo = missoes.provas_futuras(max(dia, relogio.hoje()))
     chefe = alvo[0].mundo if alvo else mundo_de("")
     return jsonify({
         "missao_id": m.id, "tipo": m.tipo, "status": m.status, "historia": m.historia, "titulo": m.titulo,
-        "dia": dia.isoformat(), "adiantada": dia > relogio.hoje(),
+        "dia": dia.isoformat(), "hoje": relogio.hoje().isoformat(), "adiantada": dia > relogio.hoje(),
         "tem_proxima": bool(missoes.provas_futuras(dia + timedelta(days=1))),
         "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor,
                   "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},

@@ -91,7 +91,9 @@ def gerar_missao(dia=None, forcar=False):
         db.session.delete(existente)
         db.session.flush()
 
-    provas = provas_futuras(dia)
+    # missão de um dia que já passou: escolhe o conteúdo pensando em hoje (não revisa prova que já aconteceu)
+    ref = max(dia, relogio.hoje())
+    provas = provas_futuras(ref)
     if not provas:
         return None
     total = tamanho_missao()
@@ -100,7 +102,7 @@ def gerar_missao(dia=None, forcar=False):
     itens, ja = [], set()
 
     # ---------------- Batalha final (véspera ou dia da prova) ----------------
-    if (proxima.data - dia).days <= 1 and proxima.conteudos:
+    if (proxima.data - ref).days <= 1 and proxima.conteudos:
         conteudos = sorted(proxima.conteudos, key=lambda c: (c.caixa, random.random()))
         alvo_total = total + 4
         # rodadas: 1 atividade de cada conteúdo por vez (os mais fracos primeiro) até encher
@@ -122,9 +124,9 @@ def gerar_missao(dia=None, forcar=False):
         mundos = [proxima.mundo["nome"]]
     else:
         # ---------------- Missão diária: 3 fases ----------------
-        usados = _usados_ontem(dia)
+        usados = _usados_ontem(ref)
         candidatos = [c for p in provas for c in p.conteudos if c.atividades_ativas()]
-        candidatos.sort(key=lambda c: _pontuacao(c, dia, usados), reverse=True)
+        candidatos.sort(key=lambda c: _pontuacao(c, ref, usados), reverse=True)
         escolhidos, materias = [], {}
         for c in candidatos:              # variedade: no máximo 2 conteúdos por matéria
             m = c.prova.materia
@@ -163,7 +165,7 @@ def gerar_missao(dia=None, forcar=False):
         nomes_conteudos = [c.titulo for c in escolhidos]
         mundos = list(dict.fromkeys(c.prova.mundo["nome"] for c in escolhidos))
 
-    historia = _historia(heroi, mundos, nomes_conteudos, tipo, (proxima.data - dia).days)
+    historia = _historia(heroi, mundos, nomes_conteudos, tipo, (proxima.data - ref).days)
     missao = Missao(data=dia, tipo=tipo, titulo=titulo, historia=historia,
                     itens=json.dumps(itens), total=len(itens))
     db.session.add(missao)
@@ -276,3 +278,36 @@ def proxima_data(hoje=None):
             return d
         d += timedelta(days=1)
     return None
+
+
+def corrigir_fuso_antigo():
+    """Uma vez só: missões jogadas entre 21h e meia-noite (Brasília) antes da correção do fuso
+    foram gravadas no dia seguinte. Devolve cada uma ao dia em que foi jogada; se aquele dia já
+    tinha missão, a do dia seguinte é reaberta (nova) — os acertos continuam contando para o herói."""
+    if Config.get("fuso_corrigido") == "1":
+        return 0
+    from datetime import timezone
+    n = 0
+    for m in Missao.query.filter(Missao.status == "concluida", Missao.concluida_em.isnot(None)).all():
+        utc = m.concluida_em.replace(tzinfo=timezone.utc)
+        local = utc.astimezone(relogio.FUSO).date()
+        if utc.date() == m.data and local == m.data - timedelta(days=1):
+            if not Missao.query.filter_by(data=local).first():
+                m.data = local
+            else:
+                Resposta.query.filter_by(missao_id=m.id).update({"missao_id": None})
+                m.status, m.acertos, m.estrelas, m.xp_ganho, m.concluida_em = "nova", 0, 0, 0, None
+            n += 1
+    Config.set("fuso_corrigido", "1")
+    db.session.commit()
+    return n
+
+
+def limites_navegacao(hoje=None):
+    """Primeiro e último dia em que existe missão na trilha (para as setas ◀ ▶)."""
+    hoje = hoje or relogio.hoje()
+    primeira = Missao.query.order_by(Missao.data).first()
+    inicio = min(primeira.data, hoje) if primeira else hoje
+    provas = [p for p in Prova.query.filter(Prova.ativa.is_(True), Prova.data.isnot(None)).all()]
+    fim = max(p.data for p in provas) - timedelta(days=1) if provas else hoje
+    return inicio, max(fim, inicio)

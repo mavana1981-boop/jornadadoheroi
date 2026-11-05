@@ -331,13 +331,13 @@
       <div class="avatar grande" style="--cor:${h.cor};margin:0 auto 12px">${h.avatar}${(h.itens || []).map((e, i) => `<span class="equip e${i}">${e}</span>`).join("")}</div>
       <h2>${esc(D.tipo === "batalha_final" ? "⚔️ Batalha Final" : D.titulo || "Missão")}</h2></div>
       <div class="mentor"><div class="coruja">🦉</div><div class="balao">${esc(D.historia)}</div></div>`;
-    if (D.adiantada) {
+    if (D.dia && D.dia !== D.hoje) {
       const [a, m, d] = D.dia.split("-");
-      tela.insertAdjacentHTML("afterbegin", `<div class="selo-adiantada">⏩ Missão adiantada · ${d}/${m}</div>`);
+      tela.insertAdjacentHTML("afterbegin", `<div class="selo-adiantada${D.adiantada ? "" : " passada"}">${D.adiantada ? "⏩ Missão adiantada" : "⏪ Missão de um dia anterior"} · ${d}/${m}</div>`);
     }
     tela.insertAdjacentHTML("beforeend", quadroAssuntos(D.assuntos, D.tipo));
     if (D.status === "concluida") {
-      tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão hoje! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
+      tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
     }
     mostrarContinuar(D.itens.length ? "Começar! ▶" : "Voltar", D.itens.length ? leitura : () => history.back());
   }

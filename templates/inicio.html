@@ -18,26 +18,37 @@
     </div>
   </div>
 
-  {# ---------------- Missão do dia ---------------- #}
+  {# ---------------- Missão do dia (com setas para navegar entre os dias) ---------------- #}
+  {% set sem = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'] %}
+  {% set dif = (dia - hoje).days %}
+  {% set rotulo = 'MISSÃO DE HOJE' if dif == 0 else ('MISSÃO DE ONTEM' if dif == -1 else ('MISSÃO DE AMANHÃ' if dif == 1 else 'MISSÃO')) %}
+  <div class="missao-nav">
+    {% if dia_ant %}<a class="mn-seta" href="{{ url_for('inicio', dia=dia_ant.isoformat()) }}" aria-label="Missão anterior">◀</a>{% else %}<span class="mn-seta off">◀</span>{% endif %}
+    <div class="mn-dia"><b>{{ rotulo }}</b><span>{{ sem[dia.weekday()] }}, {{ dia.strftime('%d/%m') }}</span></div>
+    {% if dia_seg %}<a class="mn-seta" href="{{ url_for('inicio', dia=dia_seg.isoformat()) }}" aria-label="Próxima missão">▶</a>{% else %}<span class="mn-seta off">▶</span>{% endif %}
+  </div>
+  {% if dif != 0 %}<p class="mn-voltar"><a href="{{ url_for('inicio') }}">↩ Voltar para hoje</a></p>{% endif %}
+
   {% if missao and missao.status == 'concluida' %}
     <div class="missao-dia feito">
-      <div style="font-weight:800;opacity:.9">MISSÃO DE HOJE</div>
       <h2>Missão cumprida! {{ '⭐' * missao.estrelas }}</h2>
-      <p style="max-width:70%">Você acertou {{ missao.acertos }} de {{ missao.total }}.{% if proxima_dia %} Quer continuar? Já dá para adiantar a próxima missão da trilha!{% else %} Treine um mundo abaixo!{% endif %}</p>
-      {% if proxima_dia %}
-        {% set sem = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'] %}
-        <a href="{{ url_for('missao_proxima') }}" class="btn branco" style="margin-top:6px;position:relative;z-index:2;max-width:68%;font-size:20px">Próxima missão ➜<br><small style="font-size:.7em;opacity:.75">{{ sem[proxima_dia.weekday()] }}, {{ proxima_dia.strftime('%d/%m') }}</small></a>
-      {% endif %}
+      <p style="max-width:70%">Você acertou {{ missao.acertos }} de {{ missao.total }}.{% if dif == 0 and proxima_dia %} Quer continuar? Já dá para adiantar a próxima missão da trilha!{% endif %}</p>
+      {% if assuntos_hoje %}<div class="home-assuntos">{% for a in assuntos_hoje %}<span>{{ a.emoji }} {{ a.titulo }}</span>{% endfor %}</div>{% endif %}
+      <div class="mn-botoes">
+        {% if dif == 0 and proxima_dia %}
+          <a href="{{ url_for('missao_proxima') }}" class="btn branco" style="font-size:20px">Próxima missão ➜<br><small style="font-size:.7em;opacity:.75">{{ sem[proxima_dia.weekday()] }}, {{ proxima_dia.strftime('%d/%m') }}</small></a>
+        {% endif %}
+        <a href="{{ url_for('missao', dia=dia.isoformat()) }}" class="btn peq branco" style="opacity:.92">↻ Jogar de novo</a>
+      </div>
       <div class="bau">🏆</div>
     </div>
   {% elif tem_futuras %}
-    <div class="missao-dia">
-      <div style="font-weight:800;opacity:.9">MISSÃO DE HOJE · {{ hoje|data_br }}</div>
-      <h2>{% if missao and missao.tipo == 'batalha_final' %}⚔️ Batalha Final!{% else %}Sua aventura te espera!{% endif %}</h2>
-      <p style="max-width:65%;font-size:17px">{{ missao.titulo if missao else '3 fases: Aquecimento, Desafio e Chefão.' }}</p>
+    <div class="missao-dia{{ ' perdida' if dif < 0 }}">
+      <h2>{% if missao and missao.tipo == 'batalha_final' %}⚔️ Batalha Final!{% elif dif < 0 %}💤 Missão não feita{% elif dif > 0 %}⏩ Missão adiantada{% else %}Sua aventura te espera!{% endif %}</h2>
+      <p style="max-width:65%;font-size:17px">{% if dif < 0 %}Ainda dá tempo: jogue agora e ganhe as recompensas!{% else %}{{ missao.titulo if missao else '3 fases: Aquecimento, Desafio e Chefão.' }}{% endif %}</p>
       {% if assuntos_hoje %}<div class="home-assuntos">{% for a in assuntos_hoje %}<span>{{ a.emoji }} {{ a.titulo }}</span>{% endfor %}</div>{% endif %}
-      <a href="{{ url_for('missao') }}" class="btn branco enorme" style="margin-top:6px">▶ Jogar</a>
-      <div class="bau">🎁</div>
+      <a href="{{ url_for('missao', dia=dia.isoformat()) }}" class="btn branco enorme" style="margin-top:6px">▶ Jogar</a>
+      <div class="bau">{{ '⏳' if dif < 0 else '🎁' }}</div>
     </div>
   {% else %}
     <div class="missao-dia" style="background:linear-gradient(135deg,#475569,#334155)">

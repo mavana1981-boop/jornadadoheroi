@@ -435,3 +435,24 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
   padding:12px 14px;margin:10px 0 16px;box-shadow:var(--sombra)}
 .recuperar b{display:block;font-size:17px}
 .recuperar small{display:block;color:var(--muted);font-weight:700;margin:2px 0 8px}
+
+/* ---------- navegação entre missões ---------- */
+.missao-nav{display:flex;align-items:center;gap:10px;margin:14px 0 8px;color:#fff}
+.mn-seta{width:48px;height:48px;flex:none;border-radius:50%;display:grid;place-items:center;background:#ffffff26;border:3px solid #ffffff55;
+  color:#fff;text-decoration:none;font-size:20px;font-weight:800}
+.mn-seta:active{transform:scale(.94)}
+.mn-seta.off{opacity:.25}
+.mn-dia{flex:1;text-align:center;line-height:1.15}
+.mn-dia b{display:block;font-size:14px;letter-spacing:.5px;opacity:.9}
+.mn-dia span{font-family:'Baloo 2';font-size:24px;font-weight:800}
+.mn-voltar{text-align:center;margin:-4px 0 8px}
+.mn-voltar a{color:#fde68a;font-weight:800}
+.mn-botoes{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:6px;position:relative;z-index:2;max-width:68%}
+.missao-dia.perdida{background:linear-gradient(135deg,#64748b,#7c3aed)}
+.selo-adiantada.passada{background:#64748b}
+/* nome comprido no topo: chips descem para a linha de baixo no celular */
+@media (max-width:520px){
+  .topo{flex-wrap:wrap}
+  .topo .chips{width:100%;justify-content:flex-start;margin-left:0}
+  .topo .nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
