@@ -14,6 +14,7 @@ import random
 from datetime import date, timedelta
 
 import gemini
+import relogio
 from models import db, Atividade, Config, Conteudo, Heroi, Missao, Prova, Resposta
 
 INTERVALOS = {0: 1, 1: 1, 2: 2, 3: 3, 4: 5, 5: 7}
@@ -81,7 +82,7 @@ def _usados_ontem(dia):
 
 
 def gerar_missao(dia=None, forcar=False):
-    dia = dia or date.today()
+    dia = dia or relogio.hoje()
     existente = Missao.query.filter_by(data=dia).first()
     if existente and not forcar:
         return existente
@@ -187,7 +188,7 @@ def _historia(heroi, mundos, conteudos, tipo, dias):
 
 def atualizar_revisao(conteudo, acertos, total, dia=None):
     """Leitner: ≥80% sobe uma caixa; 50-79% mantém; <50% volta para a caixa 1."""
-    dia = dia or date.today()
+    dia = dia or relogio.hoje()
     if total == 0:
         return
     taxa = acertos / total
@@ -212,7 +213,7 @@ def atualizar_revisao(conteudo, acertos, total, dia=None):
 
 def plano_de_revisao(prova, dia=None):
     """Lista conteúdos com status, para o painel dos pais."""
-    dia = dia or date.today()
+    dia = dia or relogio.hoje()
     linhas = []
     for c in prova.conteudos:
         if c.proxima_revisao is None:
@@ -257,3 +258,21 @@ def assuntos_da_prova(prova):
     return [{"id": c.id, "titulo": c.titulo, "emoji": c.emoji, "materia": prova.materia, "prova": prova.nome,
              "mundo_emoji": prova.mundo["emoji"], "paginas": c.paginas or "", "fases": [3]}
             for c in prova.conteudos if c.atividades_ativas()]
+
+
+def proxima_data(hoje=None):
+    """Próximo dia da trilha com missão ainda não cumprida (hoje ou depois).
+
+    Permite adiantar missões: depois de cumprir a de hoje, o herói pode jogar a do próximo dia.
+    Devolve None quando não há mais provas pela frente.
+    """
+    hoje = hoje or relogio.hoje()
+    feitas = {m.data for m in Missao.query.filter(Missao.data >= hoje, Missao.status == "concluida").all()}
+    d = hoje
+    for _ in range(120):
+        if not provas_futuras(d):
+            return None
+        if d not in feitas:
+            return d
+        d += timedelta(days=1)
+    return None

@@ -119,7 +119,8 @@ class Prova(db.Model):
     def dias_restantes(self):
         if not self.data:
             return None
-        return (self.data - date.today()).days
+        import relogio
+        return (self.data - relogio.hoje()).days
 
     @property
     def dominio(self):

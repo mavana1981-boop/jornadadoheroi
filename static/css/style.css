@@ -425,3 +425,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 .estr-final{display:inline-block;transform:scale(0);animation:estrPop .5s cubic-bezier(.2,1.6,.4,1) forwards}
 .estr-final:not(.ganha){opacity:.5}
 @keyframes estrPop{to{transform:scale(1)}}
+
+/* ---------- missão adiantada ---------- */
+.selo-adiantada{display:inline-block;background:#22c55e;color:#fff;font-weight:800;border-radius:999px;padding:4px 14px;margin-bottom:10px;border:3px solid #fff}
+.no-dia.liberada .nd-bola{border-color:#22c55e;animation:pulsa 1.4s infinite}

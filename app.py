@@ -12,6 +12,7 @@ from flask import (Flask, abort, flash, jsonify, redirect, render_template, requ
 
 import gemini
 import imagens
+import relogio
 import missoes
 import resumos
 from conteudo_inicial import PROVAS
@@ -144,7 +145,7 @@ def sincronizar_conteudo():
     Config.set("datas_provisorias", "0")
     Config.set("conteudo_versao", VERSAO_CONTEUDO)
     db.session.commit()
-    m = Missao.query.filter_by(data=date.today()).first()
+    m = Missao.query.filter_by(data=relogio.hoje()).first()
     if m and m.status != "concluida":
         Resposta.query.filter_by(missao_id=m.id).delete()
         db.session.delete(m)
@@ -260,7 +261,7 @@ def _preparar_foto(bruto):
 
 @app.context_processor
 def contexto():
-    return {"heroi_global": Heroi.query.first(), "TIPOS": TIPOS, "hoje": date.today(),
+    return {"heroi_global": Heroi.query.first(), "TIPOS": TIPOS, "hoje": relogio.hoje(),
             "LOJA_POR_ID": LOJA_POR_ID}
 
 
@@ -330,14 +331,15 @@ def criar_heroi():
 def inicio():
     heroi = Heroi.query.first()
     provas = Prova.query.filter_by(ativa=True).order_by(Prova.data).all()
-    hoje = date.today()
+    hoje = relogio.hoje()
     missao = Missao.query.filter_by(data=hoje).first()
     tem_futuras = bool(missoes.provas_futuras(hoje))
     ctx = contexto_jornada()
     missao = Missao.query.filter_by(data=hoje).first()
+    prox = missoes.proxima_data(hoje)
     return render_template("inicio.html", heroi=heroi, provas=provas, missao=missao,
                            tem_futuras=tem_futuras, conquistas=conquistas_de(heroi),
-                           assuntos_hoje=missoes.assuntos(missao), **ctx)
+                           assuntos_hoje=missoes.assuntos(missao), proxima_dia=prox, **ctx)
 
 
 @app.route("/mundo/<int:prova_id>")
@@ -347,15 +349,36 @@ def mundo(prova_id):
     return render_template("mundo.html", prova=prova, m=prova.mundo)
 
 
+def _dia_pedido():
+    """Dia da missão pedido na URL (?dia=AAAA-MM-DD). Só vale hoje ou dias futuros; padrão: hoje."""
+    hoje = relogio.hoje()
+    try:
+        d = date.fromisoformat(request.args.get("dia", ""))
+    except ValueError:
+        return hoje
+    return d if d >= hoje else hoje
+
+
 @app.route("/missao")
 @precisa_heroi
 def missao():
-    m = missoes.gerar_missao()
+    dia = _dia_pedido()
+    m = missoes.gerar_missao(dia)
     if not m:
         flash("Não há provas com data marcada. Peça para um adulto colocar as datas no Painel dos Pais.")
         return redirect(url_for("inicio"))
     return render_template("jogar.html", modo="missao", missao=m, titulo=m.titulo,
-                           api=url_for("api_missao_itens"))
+                           api=url_for("api_missao_itens", dia=dia.isoformat()))
+
+
+@app.route("/missao/proxima")
+@precisa_heroi
+def missao_proxima():
+    d = missoes.proxima_data()
+    if not d:
+        flash("Você já cumpriu todas as missões até a última prova! 🏆")
+        return redirect(url_for("inicio"))
+    return redirect(url_for("missao", dia=d.isoformat()))
 
 
 @app.route("/treino/<int:conteudo_id>")
@@ -381,7 +404,7 @@ def plano_jornada(hoje=None):
     Segue a mesma regra das missões: na véspera de uma prova a missão vira Batalha Final;
     no dia da prova, o castelo da prova aparece antes da missão do dia.
     """
-    hoje = hoje or date.today()
+    hoje = hoje or relogio.hoje()
     provas = (Prova.query.filter(Prova.ativa.is_(True), Prova.data.isnot(None))
               .order_by(Prova.data).all())
     if not provas:
@@ -435,23 +458,30 @@ def plano_jornada(hoje=None):
 def contexto_jornada():
     """Dados do mapa da jornada para os templates (tela inicial e /jornada)."""
     heroi = Heroi.query.first()
-    if missoes.provas_futuras(date.today()):
+    if missoes.provas_futuras(relogio.hoje()):
         missoes.gerar_missao()  # a missão de hoje já existe ao abrir o mapa (mostra os assuntos dela)
     nos = plano_jornada() or []
-    hoje = date.today().isoformat()
+    hoje = relogio.hoje().isoformat()
     # onde o herói está: a missão de hoje; se a jornada acabou, no último ponto
     pos = next((i for i, n in enumerate(nos) if n["data"] == hoje and n["tipo"] != "prova"), None)
     if pos is None:
         pos = next((i for i, n in enumerate(nos) if n["data"] == hoje), None)
     if pos is None:
         pos = len(nos) - 1 if nos and nos[-1]["data"] < hoje else 0
+    # missões adiantadas: o herói fica no último dia que já cumpriu à frente de hoje
+    adiante = [i for i, n in enumerate(nos) if n["tipo"] != "prova" and n["data"] > hoje and n["status"] == "feita"]
+    if adiante and adiante[-1] > pos:
+        pos = adiante[-1]
+    prox = missoes.proxima_data()
+    for n in nos:
+        n["proxima"] = bool(prox) and n["tipo"] != "prova" and n["data"] == prox.isoformat()
     missoes_ = [n for n in nos if n["tipo"] != "prova"]
     proxima = next((n for n in nos if n["tipo"] == "prova" and n["data"] >= hoje), None)
     resumo = {
         "dia": sum(1 for n in missoes_ if n["data"] <= hoje), "total": len(missoes_),
         "feitas": sum(1 for n in missoes_ if n["status"] == "feita"),
         "proxima": proxima,
-        "faltam": (date.fromisoformat(proxima["data"]) - date.today()).days if proxima else None,
+        "faltam": (date.fromisoformat(proxima["data"]) - relogio.hoje()).days if proxima else None,
     }
     equip = [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]
     return {"nos": nos, "pos": pos, "resumo": resumo, "equip": equip,
@@ -496,7 +526,8 @@ def _conteudos_em_ordem(itens_atividade):
 
 @app.get("/api/missao/hoje")
 def api_missao_itens():
-    m = missoes.gerar_missao()
+    dia = _dia_pedido()
+    m = missoes.gerar_missao(dia)
     if not m:
         return jsonify({"erro": "sem missão"}), 404
     ids = [i["atividade_id"] for i in m.lista_itens()]
@@ -504,10 +535,12 @@ def api_missao_itens():
     pares = [(mapa[i["atividade_id"]], i["fase"]) for i in m.lista_itens() if i["atividade_id"] in mapa]
     pares.sort(key=lambda x: x[1])
     heroi = Heroi.query.first()
-    alvo = missoes.provas_futuras(date.today())
+    alvo = missoes.provas_futuras(dia)
     chefe = alvo[0].mundo if alvo else mundo_de("")
     return jsonify({
         "missao_id": m.id, "tipo": m.tipo, "status": m.status, "historia": m.historia, "titulo": m.titulo,
+        "dia": dia.isoformat(), "adiantada": dia > relogio.hoje(),
+        "tem_proxima": bool(missoes.provas_futuras(dia + timedelta(days=1))),
         "heroi": {"nome": heroi.nome, "avatar": heroi.avatar, "cor": heroi.cor,
                   "itens": [LOJA_POR_ID[i]["emoji"] for i in heroi.lista_equipados() if i in LOJA_POR_ID]},
         "chefe": {"nome": chefe["chefao"], "emoji": chefe["chefao_emoji"]},
@@ -553,7 +586,7 @@ def api_responder():
     acertou = bool(dados.get("acertou"))
     a.vezes += 1
     a.acertos += 1 if acertou else 0
-    a.ultima_vez = date.today()
+    a.ultima_vez = relogio.hoje()
     modo = dados.get("modo", "missao")
     db.session.add(Resposta(missao_id=dados.get("missao_id"), atividade_id=a.id, acertou=acertou, modo=modo))
     heroi = Heroi.query.first()
@@ -578,7 +611,7 @@ def api_concluir():
     if modo == "missao" and dados.get("missao_id"):
         m = db.get_or_404(Missao, int(dados["missao_id"]))
         if m.status != "concluida":
-            hoje = date.today()
+            hoje = relogio.hoje()
             # repetição espaçada por conteúdo (só primeira resposta de cada atividade)
             primeiras = {}
             for r in Resposta.query.filter_by(missao_id=m.id).order_by(Resposta.id).all():
@@ -780,7 +813,7 @@ def pais_prova_excluir(prova_id):
 
 
 def _refazer_missao_de_hoje():
-    m = Missao.query.filter_by(data=date.today()).first()
+    m = Missao.query.filter_by(data=relogio.hoje()).first()
     if m and m.status != "concluida":
         Resposta.query.filter_by(missao_id=m.id).delete()
         db.session.delete(m)

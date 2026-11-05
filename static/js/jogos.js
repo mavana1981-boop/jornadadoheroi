@@ -331,6 +331,10 @@
       <div class="avatar grande" style="--cor:${h.cor};margin:0 auto 12px">${h.avatar}${(h.itens || []).map((e, i) => `<span class="equip e${i}">${e}</span>`).join("")}</div>
       <h2>${esc(D.tipo === "batalha_final" ? "⚔️ Batalha Final" : D.titulo || "Missão")}</h2></div>
       <div class="mentor"><div class="coruja">🦉</div><div class="balao">${esc(D.historia)}</div></div>`;
+    if (D.adiantada) {
+      const [a, m, d] = D.dia.split("-");
+      tela.insertAdjacentHTML("afterbegin", `<div class="selo-adiantada">⏩ Missão adiantada · ${d}/${m}</div>`);
+    }
     tela.insertAdjacentHTML("beforeend", quadroAssuntos(D.assuntos, D.tipo));
     if (D.status === "concluida") {
       tela.insertAdjacentHTML("beforeend", `<p style="color:#fff;text-align:center;font-weight:800;margin-top:16px">Você já cumpriu essa missão hoje! Pode jogar de novo para treinar (sem novas recompensas de missão).</p>`);
@@ -445,7 +449,12 @@
     </div>`;
     for (let n = 0; n < j.estrelas; n++) setTimeout(() => som("estrela", n), 1850 + n * 350);
     setTimeout(() => som("moeda"), 2000 + j.estrelas * 350);
-    if (j.subiu_nivel) setTimeout(() => { som("nivel"); confete(2500); }, 3000 + j.estrelas * 350);    mostrarContinuar(MODO === "missao" ? "Ver o herói andar no mapa 🧭" : "Voltar ao mapa 🗺️",
+    if (j.subiu_nivel) setTimeout(() => { som("nivel"); confete(2500); }, 3000 + j.estrelas * 350);    if (MODO === "missao" && D.tem_proxima) {
+      tela.insertAdjacentHTML("beforeend", `<div style="text-align:center;margin-top:14px">
+        <a class="btn branco" href="/missao/proxima" onclick="SONS && SONS.tocar('clique')">⚔️ Próxima missão agora</a>
+        <p class="mini" style="color:#fff;opacity:.85;margin-top:6px">Adianta a missão do próximo dia da trilha.</p></div>`);
+    }
+    mostrarContinuar(MODO === "missao" ? "Ver o herói andar no mapa 🧭" : "Voltar ao mapa 🗺️",
       () => location.href = MODO === "missao" ? "/?andou=1" : "/");
   }
 
